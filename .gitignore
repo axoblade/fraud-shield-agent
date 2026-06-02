@@ -1,2 +1,13 @@
-/.DS_Store
+.env
+__pycache__/
+*.pyc
+*.pyo
+venv/
+logs/
+data/*.csv
+data/*.zip
+*.egg-info/
+.DS_Store
+node_modules/
+config/mcp_config.json
 raw_materials/

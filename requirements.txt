@@ -1,0 +1,11 @@
+pymongo[srv]==4.7.2
+python-dotenv==1.0.1
+pandas==2.2.2
+google-generativeai==0.7.2
+google-cloud-aiplatform==1.57.0
+streamlit==1.35.0
+plotly==5.22.0
+africastalking==1.2.6
+tqdm==4.66.4
+tenacity==8.3.0
+loguru==0.7.2
