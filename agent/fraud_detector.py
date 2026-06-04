@@ -19,6 +19,7 @@ from typing import Any, Dict, List
 from dotenv import load_dotenv
 from loguru import logger
 
+from agent.actions import ActionExecutor
 from agent.gemini_client import GeminiClient
 from agent.mongo_mcp import MCPConnectionError, MongoDBMCPClient
 
@@ -292,26 +293,9 @@ class FraudDetectorAgent:
         transaction: Dict[str, Any],
         decision: Dict[str, Any],
     ) -> Dict[str, Any]:
-        """Log the decision to MongoDB (action execution is Day 4)."""
-        try:
-            doc_id = await mcp.insert_one(
-                "alerts",
-                {
-                    "transaction": transaction,
-                    "risk_score": decision["risk_score"],
-                    "risk_level": decision.get("risk_level", "unknown"),
-                    "action": decision.get("action", "unknown"),
-                    "reasoning": decision.get("reasoning", ""),
-                    "key_signals": decision.get("key_signals", []),
-                    "timestamp": f"2026-06-05T00:00:00Z",
-                    "resolved": False,
-                    "false_positive": None,
-                },
-            )
-            return {"alert_id": doc_id, "logged": True}
-        except MCPConnectionError:
-            logger.error("Failed to log decision to MongoDB")
-            return {"alert_id": "", "logged": False}
+        """Execute the risk decision: alert logging, risk profile update, and SMS."""
+        executor = ActionExecutor(mcp)
+        return await executor.execute(transaction, decision)
 
     async def close(self) -> None:
         """Release the MCP session if we own it."""
