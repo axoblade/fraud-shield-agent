@@ -11,4 +11,5 @@ data/*.zip
 node_modules/
 config/mcp_config.json
 test_mcp.py
+test_agent.py
 raw_materials/
