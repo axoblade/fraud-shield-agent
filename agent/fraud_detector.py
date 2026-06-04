@@ -12,6 +12,7 @@ Usage:
 
 from __future__ import annotations
 
+import asyncio
 import os
 import time
 from typing import Any, Dict, List
@@ -49,14 +50,10 @@ class FraudDetectorAgent:
         gemini : GeminiClient | None
             Pre-configured Gemini client; created automatically if omitted.
         """
-        self._mcp = mcp  # set externally or created lazily
+        self._mcp = mcp or MongoDBMCPClient()
         self._gemini = gemini
-        self._own_mcp = mcp is None
 
-    async def _get_mcp(self) -> MongoDBMCPClient:
-        if self._mcp is None:
-            self._mcp = MongoDBMCPClient()
-            await self._mcp.connect()
+    def _get_mcp(self) -> MongoDBMCPClient:
         return self._mcp
 
     def _get_gemini(self) -> GeminiClient:
@@ -73,7 +70,7 @@ class FraudDetectorAgent:
         and ``elapsed_ms``.
         """
         t0 = time.time()
-        mcp = await self._get_mcp()
+        mcp = self._get_mcp()
         gemini = self._get_gemini()
 
         # ── Step 1: Validate input ─────────────────────────────────
@@ -83,17 +80,17 @@ class FraudDetectorAgent:
         txn_step = transaction["step"]
         txn_amount = transaction["amount"]
 
-        # ── Step 2: Fetch 24h history ──────────────────────────────
-        history_24h = await self._fetch_history(mcp, name_orig, txn_step)
+        # ── Steps 2–5: Run all MCP queries concurrently ────────────
+        history_24h, recipient_flagged, baseline = await asyncio.gather(
+            self._fetch_history(mcp, name_orig, txn_step),
+            self._check_mule(mcp, name_dest),
+            self._get_baseline(mcp, name_orig),
+        )
 
-        # ── Step 3: Calculate velocity score ───────────────────────
-        velocity = await self._calculate_velocity(mcp, name_orig, txn_step, history_24h)
-
-        # ── Step 4: Check if recipient is a known mule ─────────────
-        recipient_flagged = await self._check_mule(mcp, name_dest)
-
-        # ── Step 5: Get historical baseline ────────────────────────
-        baseline = await self._get_baseline(mcp, name_orig)
+        # ── Step 3b: Calculate velocity from already-fetched history
+        velocity = await self._calculate_velocity(
+            mcp, name_orig, txn_step, history_24h
+        )
 
         # ── Step 6: Assemble context & call Gemini ─────────────────
         context = {
@@ -297,8 +294,4 @@ class FraudDetectorAgent:
         executor = ActionExecutor(mcp)
         return await executor.execute(transaction, decision)
 
-    async def close(self) -> None:
-        """Release the MCP session if we own it."""
-        if self._own_mcp and self._mcp is not None:
-            await self._mcp.close()
-            self._mcp = None
+    # (no explicit close needed — MCP sessions are per-call and self-cleaning)

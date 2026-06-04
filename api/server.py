@@ -1,0 +1,258 @@
+"""
+api/server.py — FraudShield FastAPI Backend
+REST + WebSocket API for the React dashboard.
+
+Endpoints:
+  POST /api/login          — dummy auth (admin/admin)
+  POST /api/evaluate       — run the 7-step fraud detection pipeline
+  GET  /api/metrics        — live MongoDB counts
+  WS   /ws/replay          — stream transactions from DB in real time
+
+Usage:
+    uvicorn api.server:app --reload --port 8000
+"""
+
+from __future__ import annotations
+
+import asyncio
+import os
+import sys
+import time
+from typing import Any, Dict, List
+
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from loguru import logger
+from pydantic import BaseModel, Field
+
+# ── Path setup ────────────────────────────────────────────────────
+_project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+
+from agent.actions import ActionExecutor
+from agent.fraud_detector import FraudDetectorAgent
+from agent.mongo_mcp import MongoDBMCPClient
+
+load_dotenv()
+
+# ── App ───────────────────────────────────────────────────────────
+app = FastAPI(title="FraudShield Agent API", version="1.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ── Dummy auth ────────────────────────────────────────────────────
+DUMMY_CREDENTIALS = {"admin": "admin"}
+VALID_TOKENS: set[str] = set()
+
+
+def _verify_token(token: str) -> bool:
+    return token in VALID_TOKENS
+
+
+# ── Models ────────────────────────────────────────────────────────
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class TransactionRequest(BaseModel):
+    step: int = Field(..., ge=1, le=744, description="Time step (1-744)")
+    type: str = Field(..., pattern=r"^(CASH_OUT|TRANSFER|PAYMENT|CASH_IN|DEBIT)$")
+    amount: float = Field(..., gt=0, description="Transaction amount (> 0)")
+    nameOrig: str = Field(..., min_length=1, description="Origin account ID")
+    nameDest: str = Field(..., min_length=1, description="Destination account ID")
+    oldbalanceOrg: float = Field(..., ge=0, description="Origin balance before txn")
+    newbalanceOrig: float | None = None
+
+
+class EvaluateResponse(BaseModel):
+    risk_score: int
+    risk_level: str
+    action: str
+    reasoning: str
+    key_signals: List[str]
+    elapsed_ms: float
+    alert_id: str = ""
+    sms_sent: bool = False
+
+
+class MetricsResponse(BaseModel):
+    total_transactions: int
+    fraud_count: int
+    alerts_count: int
+
+
+# ── Clients (lazy init) ───────────────────────────────────────────
+
+_mcp: MongoDBMCPClient | None = None
+_agent: FraudDetectorAgent | None = None
+_executor: ActionExecutor | None = None
+
+
+def _get_clients():
+    global _mcp, _agent, _executor
+    if _mcp is None:
+        _mcp = MongoDBMCPClient()
+        _agent = FraudDetectorAgent(mcp=_mcp)
+        _executor = ActionExecutor(_mcp)
+    return _mcp, _agent, _executor
+
+
+# ── REST endpoints ────────────────────────────────────────────────
+
+
+@app.post("/api/login")
+def login(body: LoginRequest):
+    if (
+        body.username in DUMMY_CREDENTIALS
+        and body.password == DUMMY_CREDENTIALS[body.username]
+    ):
+        token = f"tok_{os.urandom(16).hex()}"
+        VALID_TOKENS.add(token)
+        return {"token": token, "username": body.username}
+    raise HTTPException(status_code=401, detail="Invalid credentials")
+
+
+@app.post("/api/evaluate", response_model=EvaluateResponse)
+async def evaluate(txn: TransactionRequest):
+    mcp, agent, executor = _get_clients()
+
+    t0 = time.time()
+    txn_dict = txn.model_dump()
+    if txn_dict["newbalanceOrig"] is None:
+        txn_dict["newbalanceOrig"] = txn_dict["oldbalanceOrg"] - txn_dict["amount"]
+
+    result = await agent.evaluate_transaction(txn_dict)
+    decision = result["decision"]
+    action_result = await executor.execute(txn_dict, decision)
+    elapsed = (time.time() - t0) * 1000
+
+    return EvaluateResponse(
+        risk_score=decision["risk_score"],
+        risk_level=decision.get("risk_level", "unknown"),
+        action=decision.get("action", "unknown"),
+        reasoning=decision.get("reasoning", ""),
+        key_signals=decision.get("key_signals", []),
+        elapsed_ms=round(elapsed),
+        alert_id=action_result.get("alert_id", ""),
+        sms_sent=action_result.get("sms_sent", False),
+    )
+
+
+@app.get("/api/metrics", response_model=MetricsResponse)
+async def metrics():
+    mcp, _, _ = _get_clients()
+    try:
+        total = await mcp.count("transactions", {})
+        fraud = await mcp.count("transactions", {"isFraud": 1})
+        alerts = await mcp.count("alerts", {})
+    except Exception:
+        total = fraud = alerts = 0
+    return MetricsResponse(
+        total_transactions=total,
+        fraud_count=fraud,
+        alerts_count=alerts,
+    )
+
+
+# ── WebSocket: replay engine ──────────────────────────────────────
+
+
+@app.websocket("/ws/replay")
+async def ws_replay(ws: WebSocket):
+    await ws.accept()
+    mcp, agent, executor = _get_clients()
+
+    try:
+        while True:
+            # Wait for control message from client
+            msg = await ws.receive_json()
+            action = msg.get("action")
+
+            if action == "start":
+                limit = min(msg.get("limit", 200), 1000)
+                speed = max(msg.get("speed", 1.0), 0.1)
+
+                # Fetch mixed transactions
+                half = limit // 2
+                fraud_txns = await mcp.find("transactions", {"isFraud": 1}, limit=half)
+                normal_txns = await mcp.find(
+                    "transactions",
+                    {"isFraud": 0, "type": "CASH_OUT"},
+                    limit=half,
+                )
+                all_txns = sorted(
+                    fraud_txns + normal_txns, key=lambda x: x.get("step", 0)
+                )
+
+                await ws.send_json({
+                    "type": "replay_start",
+                    "total": len(all_txns),
+                    "fraud": len(fraud_txns),
+                    "normal": len(normal_txns),
+                })
+
+                for i, txn in enumerate(all_txns):
+                    try:
+                        result = await agent.evaluate_transaction(txn)
+                        decision = result["decision"]
+                        action_result = await executor.execute(txn, decision)
+
+                        await ws.send_json({
+                            "type": "transaction_result",
+                            "index": i + 1,
+                            "total": len(all_txns),
+                            "transaction": {
+                                "step": txn.get("step"),
+                                "type": txn.get("type"),
+                                "amount": txn.get("amount"),
+                                "nameOrig": txn.get("nameOrig"),
+                                "nameDest": txn.get("nameDest"),
+                            },
+                            "risk_score": decision["risk_score"],
+                            "risk_level": decision.get("risk_level"),
+                            "action": decision.get("action"),
+                            "reasoning": decision.get("reasoning"),
+                            "key_signals": decision.get("key_signals"),
+                            "elapsed_ms": result["elapsed_ms"],
+                            "alert_id": action_result.get("alert_id", ""),
+                        })
+                    except Exception as exc:
+                        await ws.send_json({
+                            "type": "error",
+                            "index": i + 1,
+                            "error": str(exc),
+                        })
+
+                    await asyncio.sleep(0.5 / speed)
+
+                await ws.send_json({"type": "replay_complete", "total": len(all_txns)})
+
+            elif action == "stop":
+                await ws.send_json({"type": "replay_stopped"})
+                break
+
+    except WebSocketDisconnect:
+        logger.info("WebSocket client disconnected")
+    except Exception as exc:
+        logger.error(f"WebSocket error: {exc}")
+        try:
+            await ws.send_json({"type": "error", "error": str(exc)})
+        except Exception:
+            pass
+
+
+# ── Health check ──────────────────────────────────────────────────
+
+@app.get("/api/health")
+def health():
+    return {"status": "ok"}
