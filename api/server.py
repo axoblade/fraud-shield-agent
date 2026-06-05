@@ -15,6 +15,7 @@ Usage:
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import sys
 import time
@@ -32,8 +33,22 @@ if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
 from agent.actions import ActionExecutor
-from agent.fraud_detector import FraudDetectorAgent
+from agent.agent_core import FraudShieldAgent
 from agent.mongo_mcp import MongoDBMCPClient
+
+# Suppress gRPC fork noise from npx MCP subprocess
+os.environ.setdefault("GRPC_VERBOSITY", "ERROR")
+os.environ.setdefault("GRPC_TRACE", "none")
+
+
+def _to_plain(obj: Any) -> Any:
+    """Strip protobuf types from Gemini function-call responses.
+
+    Gemini returns RepeatedComposite for lists and other proto wrappers
+    that the MCP SDK can't serialise.  Round-tripping through JSON
+    converts everything to plain Python types.
+    """
+    return json.loads(json.dumps(obj, default=str))
 
 load_dotenv()
 
@@ -83,6 +98,7 @@ class EvaluateResponse(BaseModel):
     elapsed_ms: float
     alert_id: str = ""
     sms_sent: bool = False
+    trace: List[Dict[str, Any]] = []  # turn-by-turn agent reasoning
 
 
 class MetricsResponse(BaseModel):
@@ -94,7 +110,7 @@ class MetricsResponse(BaseModel):
 # ── Clients (lazy init) ───────────────────────────────────────────
 
 _mcp: MongoDBMCPClient | None = None
-_agent: FraudDetectorAgent | None = None
+_agent: FraudShieldAgent | None = None
 _executor: ActionExecutor | None = None
 
 
@@ -102,7 +118,7 @@ def _get_clients():
     global _mcp, _agent, _executor
     if _mcp is None:
         _mcp = MongoDBMCPClient()
-        _agent = FraudDetectorAgent(mcp=_mcp)
+        _agent = FraudShieldAgent(mcp=_mcp)
         _executor = ActionExecutor(_mcp)
     return _mcp, _agent, _executor
 
@@ -131,8 +147,8 @@ async def evaluate(txn: TransactionRequest):
     if txn_dict["newbalanceOrig"] is None:
         txn_dict["newbalanceOrig"] = txn_dict["oldbalanceOrg"] - txn_dict["amount"]
 
-    result = await agent.evaluate_transaction(txn_dict)
-    decision = result["decision"]
+    decision, trace = await agent.evaluate(txn_dict)
+    decision = _to_plain(decision)  # strip protobuf types
     action_result = await executor.execute(txn_dict, decision)
     elapsed = (time.time() - t0) * 1000
 
@@ -145,6 +161,7 @@ async def evaluate(txn: TransactionRequest):
         elapsed_ms=round(elapsed),
         alert_id=action_result.get("alert_id", ""),
         sms_sent=action_result.get("sms_sent", False),
+        trace=trace,
     )
 
 
@@ -162,6 +179,36 @@ async def metrics():
         fraud_count=fraud,
         alerts_count=alerts,
     )
+
+
+# ── WebSocket: live metrics stream ────────────────────────────────
+
+
+@app.websocket("/ws/metrics")
+async def ws_metrics(ws: WebSocket):
+    """Push live MongoDB counts every 5 seconds."""
+    await ws.accept()
+    # Fresh MCP client per connection — avoids anyio task conflicts
+    mcp = MongoDBMCPClient()
+
+    try:
+        while True:
+            try:
+                total = await mcp.count("transactions", {})
+                fraud = await mcp.count("transactions", {"isFraud": 1})
+                alerts = await mcp.count("alerts", {})
+            except Exception:
+                total = fraud = alerts = 0
+
+            await ws.send_json({
+                "type": "metrics",
+                "total_transactions": total,
+                "fraud_count": fraud,
+                "alerts_count": alerts,
+            })
+            await asyncio.sleep(5)
+    except WebSocketDisconnect:
+        pass
 
 
 # ── WebSocket: replay engine ──────────────────────────────────────
@@ -203,8 +250,8 @@ async def ws_replay(ws: WebSocket):
 
                 for i, txn in enumerate(all_txns):
                     try:
-                        result = await agent.evaluate_transaction(txn)
-                        decision = result["decision"]
+                        decision, trace = await agent.evaluate(txn)
+                        decision = _to_plain(decision)  # strip protobuf types
                         action_result = await executor.execute(txn, decision)
 
                         await ws.send_json({
@@ -222,9 +269,10 @@ async def ws_replay(ws: WebSocket):
                             "risk_level": decision.get("risk_level"),
                             "action": decision.get("action"),
                             "reasoning": decision.get("reasoning"),
-                            "key_signals": decision.get("key_signals"),
-                            "elapsed_ms": result["elapsed_ms"],
+                            "key_signals": decision.get("key_signals") or [],
+                            "elapsed_ms": 0,
                             "alert_id": action_result.get("alert_id", ""),
+                            "trace": trace,
                         })
                     except Exception as exc:
                         await ws.send_json({

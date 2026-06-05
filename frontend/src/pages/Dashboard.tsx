@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { evaluateTransaction, fetchMetrics } from "../api";
+import { useEffect, useRef, useState } from "react";
+import { evaluateTransaction } from "../api";
 import MetricsBar from "../components/MetricsBar";
 import Navbar from "../components/Navbar";
 import ReplayPanel from "../components/ReplayPanel";
@@ -10,8 +10,14 @@ interface Props {
 	onLogout: () => void;
 }
 
+interface Metrics {
+	total_transactions: number;
+	fraud_count: number;
+	alerts_count: number;
+}
+
 export default function Dashboard({ onLogout }: Props) {
-	const [metrics, setMetrics] = useState({
+	const [metrics, setMetrics] = useState<Metrics>({
 		total_transactions: 0,
 		fraud_count: 0,
 		alerts_count: 0,
@@ -20,10 +26,31 @@ export default function Dashboard({ onLogout }: Props) {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
 	const [modalOpen, setModalOpen] = useState(false);
+	const metricsWs = useRef<WebSocket | null>(null);
 
 	useEffect(() => {
-		fetchMetrics().then(setMetrics).catch(console.error);
-	}, [result]);
+		// Connect to live metrics WebSocket — updates every 5s in real time
+		const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+		const ws = new WebSocket(`${protocol}//${location.host}/ws/metrics`);
+		metricsWs.current = ws;
+
+		ws.onmessage = (e) => {
+			const msg = JSON.parse(e.data);
+			if (msg.type === "metrics") {
+				setMetrics({
+					total_transactions: msg.total_transactions,
+					fraud_count: msg.fraud_count,
+					alerts_count: msg.alerts_count,
+				});
+			}
+		};
+
+		return () => {
+			if (metricsWs.current?.readyState === WebSocket.OPEN) {
+				metricsWs.current.close();
+			}
+		};
+	}, []);
 
 	const handleEvaluate = async (txn: any) => {
 		setLoading(true);

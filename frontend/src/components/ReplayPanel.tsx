@@ -17,6 +17,13 @@ interface ReplayRow {
 	key_signals: string[];
 	elapsed_ms: number;
 	alert_id: string;
+	trace?: {
+		turn: number;
+		tool: string;
+		result_summary: string;
+		reasoning?: string;
+		elapsed_ms: number;
+	}[];
 }
 
 function badge(action: string): string {
@@ -168,12 +175,41 @@ export default function ReplayPanel() {
 							</div>
 							<p className='reasoning'>{r.reasoning}</p>
 							<div className='signals'>
-								{r.key_signals.map((s) => (
-									<span key={s} className='tag'>
-										{s}
-									</span>
-								))}
+								{(Array.isArray(r.key_signals) ? r.key_signals : []).map(
+									(s: string) => (
+										<span key={s} className='tag'>
+											{s}
+										</span>
+									),
+								)}
 							</div>
+							{r.trace && r.trace.length > 0 && (
+								<div className='agent-trace'>
+									<div className='trace-header'>Agent Investigation</div>
+									{r.trace
+										.filter((t: any) => t.turn > 0)
+										.map((t: any, j: number) => (
+											<div key={j}>
+												<div className='trace-step'>
+													<span className='trace-turn'>T{t.turn}</span>
+													<span className='trace-tool'>{t.tool}</span>
+													<span className='trace-result'>
+														{t.result_summary}
+													</span>
+													<span className='trace-ms'>{t.elapsed_ms}ms</span>
+												</div>
+												{t.reasoning && (
+													<div className='trace-reasoning'>{t.reasoning}</div>
+												)}
+											</div>
+										))}
+									{r.trace.find((t: any) => t.turn === 0)?.result_summary && (
+										<div className='trace-summary'>
+											{r.trace.find((t: any) => t.turn === 0)!.result_summary}
+										</div>
+									)}
+								</div>
+							)}
 						</div>
 					))}
 				</div>

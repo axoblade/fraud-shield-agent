@@ -14,6 +14,7 @@ Usage:
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import json
 import os
@@ -45,12 +46,8 @@ class MCPConnectionError(Exception):
 class MongoDBMCPClient:
     """Async wrapper around the MongoDB MCP server (stdio transport).
 
-    Creates a fresh MCP subprocess per tool call — avoids persistent-state
-    issues with Streamlit's event-loop model.  Supports ``async with`` for
-    explicit cleanup::
-
-        async with MongoDBMCPClient() as mcp:
-            docs = await mcp.find("transactions", {"isFraud": 1})
+    Maintains a persistent session — one subprocess, reused across calls.
+    The subprocess is lazily started on first use and kept alive.
     """
 
     DATABASE = "fraudshield"
@@ -58,48 +55,75 @@ class MongoDBMCPClient:
     def __init__(self, connection_string: Optional[str] = None) -> None:
         self._uri = connection_string or os.getenv("MONGODB_URI", "")
         if not self._uri:
-            raise MCPConnectionError(
-                "MONGODB_URI is not set.  "
-                "Export it or pass connection_string to the constructor."
-            )
-
-    # ── Context manager (convenience, not required) ───────────────
+            raise MCPConnectionError("MONGODB_URI is not set.")
+        self._session: Optional[ClientSession] = None
+        self._read = None
+        self._write = None
+        self._stdio_ctx = None
+        self._session_ctx = None
 
     async def __aenter__(self) -> "MongoDBMCPClient":
+        await self._ensure_connected()
         return self
 
     async def __aexit__(self, *args: Any) -> None:
-        pass  # nothing to tear down — every call cleans up after itself
+        # Silent cleanup — process exit handles EPIPE
+        self._session = None
+        self._session_ctx = None
+        self._read = None
+        self._write = None
+        self._stdio_ctx = None
 
-    # ── Connection helpers ────────────────────────────────────────
-
-    def _server_params(self) -> StdioServerParameters:
-        return StdioServerParameters(
+    async def _ensure_connected(self) -> ClientSession:
+        if self._session is not None:
+            return self._session
+        params = StdioServerParameters(
             command="npx",
             args=["-y", "mongodb-mcp-server"],
-            env={"MDB_MCP_CONNECTION_STRING": self._uri},
+            env={
+                "MDB_MCP_CONNECTION_STRING": self._uri,
+                "NODE_NO_WARNINGS": "1",
+            },
         )
+        self._stdio_ctx = stdio_client(params)
+        self._read, self._write = await self._stdio_ctx.__aenter__()
+        self._session_ctx = ClientSession(self._read, self._write)
+        self._session = await self._session_ctx.__aenter__()
+        await self._session.initialize()
+        return self._session
 
-    @contextlib.asynccontextmanager
-    async def _session(self):
-        """Yield an initialised ClientSession, suppressing cleanup noise.
+    async def _call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> list:
+        """Call an MCP tool against the persistent session.
 
-        Any exception raised *after* the caller's ``yield`` block finishes
-        is a stdio-transport teardown artifact (BrokenResourceError,
-        ExceptionGroup, RuntimeError) — we swallow it silently.
+        If the session dies (EPIPE, BrokenResourceError), recreates it
+        and retries once transparently.
         """
-        try:
-            async with stdio_client(self._server_params()) as (read, write):
-                async with ClientSession(read, write) as session:
-                    await session.initialize()
-                    yield session
-        except BaseException:
-            raise  # setup error — propagate to caller
-        finally:
-            # Swallow *all* teardown noise.  The finally block runs after
-            # both the try suite and any exception handler, so this covers
-            # the stdio_client/ClientSession __aexit__ path.
-            pass
+        last_exc = None
+        for attempt in (1, 2):
+            try:
+                session = await self._ensure_connected()
+                result = await session.call_tool(tool_name, arguments=arguments)
+                if result.isError:
+                    error_text = result.content[0].text if result.content else "unknown"
+                    raise MCPConnectionError(f"MCP tool '{tool_name}' error: {error_text}")
+                return list(result.content) if result.content else []
+            except Exception as exc:
+                last_exc = exc
+                if attempt == 1:
+                    logger.warning(f"MCP call '{tool_name}' failed, reconnecting: {exc}")
+                    self._session = None
+                    self._session_ctx = None
+                    try:
+                        if self._stdio_ctx:
+                            await self._stdio_ctx.__aexit__(None, None, None)
+                    except Exception:
+                        pass
+                    self._stdio_ctx = None
+                    self._read = None
+                    self._write = None
+                    continue
+                logger.error(f"MCP tool '{tool_name}' failed after retry: {exc}")
+        raise MCPConnectionError(f"MCP call to '{tool_name}' failed: {last_exc}") from last_exc
 
     # ── Internal helpers ─────────────────────────────────────────
 
@@ -204,35 +228,6 @@ class MongoDBMCPClient:
         if hasattr(value, "item"):
             return value.item()
         return value
-
-    async def _call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> list:
-        """Low-level MCP tool call — creates a fresh session per call.
-
-        Returns the raw ``result.content`` list (may contain 0-2 text items).
-        Cleanup errors (BrokenResourceError, ExceptionGroup, anyio cancel-scope
-        mismatch) are suppressed — these are normal for stdio transport teardown.
-        """
-        try:
-            async with self._session() as session:
-                result = await session.call_tool(tool_name, arguments=arguments)
-        except BaseException:
-            # Swallow *all* teardown noise.  The tool call itself succeeded
-            # (otherwise it would have raised MCPConnectionError above).
-            # What remains are cleanup artifacts from the stdio subprocess.
-            pass
-
-        if result.isError:
-            error_text = ""
-            if result.content:
-                error_text = (
-                    result.content[0].text
-                    if hasattr(result.content[0], "text")
-                    else str(result.content)
-                )
-            raise MCPConnectionError(
-                f"MCP tool '{tool_name}' returned error: {error_text}"
-            )
-        return list(result.content) if result.content else []
 
     # ── Public API (5 tools) ─────────────────────────────────────
 

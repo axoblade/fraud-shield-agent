@@ -381,6 +381,68 @@ h3 {
 	font-weight: 500;
 }
 
+/* Agent trace */
+.agent-trace {
+	margin-top: 14px;
+	border-top: 1px solid var(--border);
+	padding-top: 12px;
+}
+.trace-header {
+	font-size: 0.75rem;
+	font-weight: 600;
+	color: var(--text-secondary);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	margin-bottom: 8px;
+}
+.trace-step {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 5px 0;
+	font-size: 0.78rem;
+}
+.trace-turn {
+	background: var(--accent-light);
+	color: var(--accent);
+	font-weight: 600;
+	font-size: 0.7rem;
+	padding: 1px 6px;
+	border-radius: 4px;
+	min-width: 28px;
+	text-align: center;
+}
+.trace-tool {
+	color: var(--text-secondary);
+	min-width: 80px;
+	font-weight: 500;
+}
+.trace-result {
+	flex: 1;
+	color: var(--text-secondary);
+}
+.trace-ms {
+	color: var(--text-tertiary);
+	font-size: 0.7rem;
+	min-width: 40px;
+	text-align: right;
+}
+.trace-reasoning {
+	font-size: 0.73rem;
+	color: var(--text-tertiary);
+	padding: 2px 0 4px 38px;
+	font-style: italic;
+	line-height: 1.4;
+}
+.trace-summary {
+	margin-top: 8px;
+	padding-top: 8px;
+	border-top: 1px solid var(--border);
+	font-size: 0.73rem;
+	font-weight: 500;
+	color: var(--text-secondary);
+}
+
 /* ── Replay ── */
 .replay-full {
 	margin-bottom: 16px;
