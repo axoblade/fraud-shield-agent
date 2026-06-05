@@ -24,6 +24,7 @@ from typing import Any, Dict, List
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from loguru import logger
 from pydantic import BaseModel, Field
 
@@ -149,6 +150,7 @@ async def evaluate(txn: TransactionRequest):
 
     decision, trace = await agent.evaluate(txn_dict)
     decision = _to_plain(decision)  # strip protobuf types
+    trace = _to_plain(trace)        # strip protobuf types from trace
     action_result = await executor.execute(txn_dict, decision)
     elapsed = (time.time() - t0) * 1000
 
@@ -252,6 +254,7 @@ async def ws_replay(ws: WebSocket):
                     try:
                         decision, trace = await agent.evaluate(txn)
                         decision = _to_plain(decision)  # strip protobuf types
+                        trace = _to_plain(trace)        # strip protobuf types from trace
                         action_result = await executor.execute(txn, decision)
 
                         await ws.send_json({
@@ -304,3 +307,11 @@ async def ws_replay(ws: WebSocket):
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+
+
+# ── Serve React SPA in production ─────────────────────────────────
+# In local dev Vite handles the frontend; in Docker / Cloud Run the
+# built assets live at frontend/dist/ and FastAPI serves them directly.
+_frontend_dist = os.path.join(_project_root, "frontend", "dist")
+if os.path.isdir(_frontend_dist):
+    app.mount("/", StaticFiles(directory=_frontend_dist, html=True), name="frontend")

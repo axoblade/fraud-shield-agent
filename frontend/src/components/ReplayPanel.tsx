@@ -1,7 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { createReplaySocket } from "../api";
-
-const BATCH_INTERVAL_MS = 80; // flush queued rows every 80ms for smooth rendering
 
 interface ReplayRow {
 	index: number;
@@ -47,38 +45,13 @@ export default function ReplayPanel() {
 	const [limit, setLimit] = useState(100);
 	const [speed, setSpeed] = useState(5);
 	const wsRef = useRef<WebSocket | null>(null);
-	const rowBuffer = useRef<ReplayRow[]>([]);
-	const logBuffer = useRef<string[]>([]);
-	const flushTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-	// Flush batched rows and logs on a timer for smooth rendering
-	const flushBuffers = useCallback(() => {
-		if (rowBuffer.current.length > 0) {
-			setRows((prev) => [...rowBuffer.current, ...prev]);
-			rowBuffer.current = [];
-		}
-		if (logBuffer.current.length > 0) {
-			setLogs((prev) => [
-				...prev.slice(-(500 - logBuffer.current.length)),
-				...logBuffer.current,
-			]);
-			logBuffer.current = [];
-		}
-	}, []);
-
-	const addLog = (msg: string) => {
-		logBuffer.current.push(msg);
-	};
+	const addLog = (msg: string) => setLogs((prev) => [...prev.slice(-500), msg]);
 
 	const start = useCallback(() => {
 		setRows([]);
 		setLogs([]);
-		rowBuffer.current = [];
-		logBuffer.current = [];
 		setRunning(true);
-
-		// Start periodic flush for smooth rendering
-		flushTimer.current = setInterval(flushBuffers, BATCH_INTERVAL_MS);
 
 		const ws = createReplaySocket();
 		wsRef.current = ws;
@@ -96,7 +69,7 @@ export default function ReplayPanel() {
 				);
 				setProgress(`0 / ${msg.total}`);
 			} else if (msg.type === "transaction_result") {
-				rowBuffer.current.push(msg as ReplayRow);
+				setRows((prev) => [msg as ReplayRow, ...prev]);
 				const t = msg.transaction;
 				addLog(
 					`[${String(msg.index).padStart(3, "0")}/${msg.total}] ${t.type.padEnd(9)} $${t.amount.toLocaleString().padStart(12)} | ${t.nameOrig} → ${t.nameDest} | score=${msg.risk_score} ${msg.action.toUpperCase()} | ${msg.elapsed_ms}ms`,
@@ -104,13 +77,10 @@ export default function ReplayPanel() {
 				setProgress(`${msg.index} / ${msg.total}`);
 			} else if (msg.type === "replay_complete") {
 				addLog(`[DONE]  ✅ All ${msg.total} transactions processed`);
-				// Flush remaining before stopping
-				flushBuffers();
 				setRunning(false);
 				setProgress(`Complete — ${msg.total} txns`);
 			} else if (msg.type === "replay_stopped") {
 				addLog("[STOP]  ⏹ Replay stopped by user");
-				flushBuffers();
 				setRunning(false);
 			} else if (msg.type === "error") {
 				addLog(`[ERROR] ${msg.error}`);
@@ -119,25 +89,18 @@ export default function ReplayPanel() {
 		ws.onclose = () => {
 			if (ws === wsRef.current) {
 				addLog("[WS]    Disconnected");
-				flushBuffers();
 				setRunning(false);
 			}
 		};
 		ws.onerror = () => {
 			if (ws === wsRef.current) {
 				addLog("[WS]    Connection error");
-				flushBuffers();
 				setRunning(false);
 			}
 		};
-	}, [limit, speed, flushBuffers]);
+	}, [limit, speed]);
 
 	const stop = useCallback(() => {
-		// Clear flush timer
-		if (flushTimer.current) {
-			clearInterval(flushTimer.current);
-			flushTimer.current = null;
-		}
 		const ws = wsRef.current;
 		if (!ws || ws.readyState !== WebSocket.OPEN) {
 			setRunning(false);
@@ -147,18 +110,8 @@ export default function ReplayPanel() {
 		ws.send(JSON.stringify({ action: "stop" }));
 		setTimeout(() => {
 			if (ws.readyState === WebSocket.OPEN) ws.close();
-			flushBuffers();
 			setRunning(false);
 		}, 500);
-	}, [flushBuffers]);
-
-	// Cleanup flush timer on unmount
-	useEffect(() => {
-		return () => {
-			if (flushTimer.current) {
-				clearInterval(flushTimer.current);
-			}
-		};
 	}, []);
 
 	return (

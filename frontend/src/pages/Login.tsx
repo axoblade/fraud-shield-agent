@@ -3,9 +3,10 @@ import { login } from "../api";
 
 interface Props {
 	onLogin: () => void;
+	onBack?: () => void;
 }
 
-export default function Login({ onLogin }: Props) {
+export default function Login({ onLogin, onBack }: Props) {
 	const [username, setUsername] = useState("");
 	const [password, setPassword] = useState("");
 	const [error, setError] = useState("");
@@ -67,6 +68,11 @@ export default function Login({ onLogin }: Props) {
 					{loading ? "Signing in…" : "Sign In"}
 				</button>
 				<p className='hint'>Demo credentials: admin / admin</p>
+				{onBack && (
+					<button type='button' className='back-link' onClick={onBack}>
+						← Back to overview
+					</button>
+				)}
 			</form>
 		</div>
 	);

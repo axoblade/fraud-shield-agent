@@ -1,0 +1,32 @@
+# Environment
+.env
+*.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+*.egg-info/
+
+# Node
+node_modules/
+
+# Data
+data/*.csv
+data/*.zip
+raw_materials/
+
+# Logs
+logs/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.DS_Store
+.vscode/
+
+# Config (contains secrets)
+config/mcp_config.json

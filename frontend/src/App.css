@@ -216,6 +216,20 @@ h3 {
 	font-size: 0.75rem;
 	text-align: center;
 }
+.login-card .back-link {
+	background: none;
+	border: none;
+	color: var(--text-tertiary);
+	font-size: 0.78rem;
+	font-family: inherit;
+	cursor: pointer;
+	padding: 4px 0;
+	text-align: center;
+	transition: color 0.15s;
+}
+.login-card .back-link:hover {
+	color: var(--accent);
+}
 
 /* ── Dashboard ── */
 .dashboard {

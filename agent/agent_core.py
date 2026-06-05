@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import time
 from typing import Any, Dict, List, Optional
 
@@ -245,6 +246,24 @@ class FraudShieldAgent:
                 tool_result = self._sanitize_result(raw_result)
                 turn_elapsed = (time.time() - turn_start) * 1000
 
+                # If Gemini called submit_risk_decision directly, capture it now.
+                # Don't send a function_response for it — there's nothing to respond to.
+                if tool_name == "submit_risk_decision":
+                    decision = tool_args
+                    trace.append({
+                        "turn": turn,
+                        "tool": tool_name,
+                        "args": tool_args,
+                        "result_summary": f"score={decision['risk_score']}/100 → {decision['action']}",
+                        "reasoning": reasoning,
+                        "elapsed_ms": round(turn_elapsed),
+                    })
+                    logger.info(
+                        f"Agent decision: score={decision['risk_score']} "
+                        f"action={decision['action']} in {turn} turns"
+                    )
+                    break
+
                 trace.append({
                     "turn": turn,
                     "tool": tool_name,
@@ -385,12 +404,10 @@ class FraudShieldAgent:
             tool = step.get("tool", "")
             result = step.get("result_summary", "")
             if tool == "calculate_velocity":
-                import re
                 m = re.search(r"score ([\d.]+)/10", str(result))
                 if m:
                     velocity_score = float(m.group(1))
             if tool == "fetch_account_history":
-                import re
                 m = re.search(r"(\d+) txns", str(result))
                 if m:
                     hist_count = int(m.group(1))
@@ -859,7 +876,6 @@ class FraudShieldAgent:
                     recipient_flagged = True
             if tool == "calculate_velocity":
                 # Try to parse score from result summary like "score 8.5/10"
-                import re
                 m = re.search(r"score ([\d.]+)/10", str(result))
                 if m:
                     velocity_score = float(m.group(1))

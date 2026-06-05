@@ -83,6 +83,8 @@ class MongoDBMCPClient:
             env={
                 "MDB_MCP_CONNECTION_STRING": self._uri,
                 "NODE_NO_WARNINGS": "1",
+                "GRPC_VERBOSITY": "ERROR",
+                "GRPC_TRACE": "none",
             },
         )
         self._stdio_ctx = stdio_client(params)
