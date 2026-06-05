@@ -78,8 +78,8 @@ class MongoDBMCPClient:
         if self._session is not None:
             return self._session
         params = StdioServerParameters(
-            command="npx",
-            args=["-y", "mongodb-mcp-server"],
+            command="mongodb-mcp-server",
+            args=[],
             env={
                 "MDB_MCP_CONNECTION_STRING": self._uri,
                 "NODE_NO_WARNINGS": "1",

@@ -10,7 +10,8 @@ RUN pnpm build
 FROM python:3.12-slim
 RUN apt-get update \
     && apt-get install -y nodejs npm curl --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && npm install -g mongodb-mcp-server
 
 WORKDIR /app
 
