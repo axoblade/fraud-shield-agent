@@ -36,20 +36,20 @@
 FraudShield Agent is an autonomous AI agent that detects and blocks mobile money fraud in real time. It is not a chatbot — it is an agent that:
 
 1. Receives a transaction
-2. Queries MongoDB via MCP to fetch the user's history
-3. Runs aggregation pipelines to calculate velocity and detect patterns
-4. Passes structured context to Gemini 3 for reasoning
-5. Produces a risk score between 0 and 100
-6. Executes an automated action (allow / flag / block)
-7. Logs the decision back to MongoDB and fires an SMS alert if blocked
+2. Gemini 2.5 Flash decides WHICH tools to call and HOW DEEP to investigate
+3. Agent dynamically queries MongoDB via MCP (history, velocity, mule, baseline, risk history, balance mismatch)
+4. Each tool result feeds back into Gemini for the next decision — max 6 turns
+5. When confident, Gemini calls submit_risk_decision with a risk score 0-100
+6. Action Executor routes: allow / flag / block + inserts alert + sends SMS
+7. Full investigation trace (tool calls, reasoning, analysis) rendered in the dashboard
 
 ### Why It Wins the MongoDB Track
 
 - Uses 5 MCP tools: `find`, `aggregate`, `insert_one`, `update_one`, `count`
 - Runs on 6.3 million real PaySim transactions in MongoDB Atlas
-- Agent is autonomous and multi-step — not a simple query wrapper
+- True multi-turn agent — Gemini chooses tools dynamically
 - Real-world problem with massive impact in Sub-Saharan Africa
-- Complete end-to-end flow: transaction in → reasoning → action out
+- Complete end-to-end flow: transaction in → agent investigation → reasoning → action out
 
 ### Hackathon Details
 
@@ -65,7 +65,7 @@ FraudShield Agent is an autonomous AI agent that detects and blocks mobile money
 | Criterion                    | Weight | How FraudShield Delivers                     |
 | ---------------------------- | ------ | -------------------------------------------- |
 | Technological Implementation | High   | 5 MCP tools, Gemini reasoning, 6.3M docs     |
-| Design                       | Medium | Clean Streamlit dashboard with live feed     |
+| Design                       | Medium | Professional React dashboard with live feed  |
 | Potential Impact             | High   | Stops mobile money fraud before money leaves |
 | Quality of Idea              | Medium | Autonomous agent, not a chatbot              |
 
@@ -81,18 +81,18 @@ FraudShield Agent is an autonomous AI agent that detects and blocks mobile money
                       │
                       ▼
 ┌─────────────────────────────────────────────────┐
-│         Google Gemini 3 Agent (Python)           │
-│         hosted on Google Cloud Run               │
+│     FraudShield Agent (Python)                   │
+│     Gemini 2.5 Flash with function calling        │
 │                                                  │
-│  Step 1: Parse transaction                       │
-│  Step 2: find()      → 24h history               │
-│  Step 3: aggregate() → velocity score            │
-│  Step 4: find()      → mule check                │
-│  Step 5: aggregate() → deviation from baseline  │
-│  Step 6: Gemini reasons → risk score 0-100       │
-│  Step 7: Execute action                          │
+│  Multi-turn dynamic investigation:               │
+│  Turn 1: fetch_account_history (always first)    │
+│  Turn 2+: Gemini decides — velocity? mule?       │
+│          baseline? risk_history? balance?         │
+│  Final:  submit_risk_decision → score + action   │
+│                                                  │
+│  7 registered tools, max 6 turns                 │
 └──────────────┬──────────────────────────────────┘
-               │  MongoDB MCP Server
+               │  MongoDB MCP Server (npx)
                ▼
 ┌─────────────────────────────────────────────────┐
 │              MongoDB Atlas                       │
@@ -105,9 +105,9 @@ FraudShield Agent is an autonomous AI agent that detects and blocks mobile money
                │
                ▼
 ┌─────────────────────────────────────────────────┐
-│              Action Outputs                      │
+│              Action Executor                     │
 │                                                  │
-│  Risk 0-30  → Allow  → update_one (log normal)  │
+│  Risk 0-30  → Allow  → log normal               │
 │  Risk 31-60 → Flag   → insert_one (alert)       │
 │  Risk 61-100→ Block  → insert_one + SMS alert   │
 └─────────────────────────────────────────────────┘
@@ -115,10 +115,12 @@ FraudShield Agent is an autonomous AI agent that detects and blocks mobile money
                ▼
 ┌─────────────────────────────────────────────────┐
 │         React Dashboard (FastAPI + WebSocket)   │
-│  - Live metrics (volume, fraud, alerts)        │
-│  - Manual transaction analysis (fly-out modal) │
-│  - Real-time replay via WebSocket              │
-│  - Split-pane: results + terminal logs         │
+│  - Live metrics (volume, fraud, alerts)         │
+│  - Manual transaction analysis (fly-out modal)  │
+│  - Real-time replay via WebSocket               │
+│  - Split-pane: results + terminal logs          │
+│  - Agent trace with per-step reasoning          │
+│  - Heuristic baseline on every response         │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -159,10 +161,11 @@ fraudshield-agent/
 │   └── verify_day1.py               # Post-load verification script
 │
 ├── agent/
-│   ├── mongo_mcp.py                 # MongoDB MCP client wrapper
-│   ├── gemini_client.py             # Gemini 2.5 Flash reasoning engine
-│   ├── fraud_detector.py            # Core 7-step agent workflow
-│   └── actions.py                   # Block / flag / allow action execution
+│   ├── agent_core.py                # Multi-turn agent with Gemini function calling (main)
+│   ├── mongo_mcp.py                 # Persistent MCP client with auto-reconnect
+│   ├── gemini_client.py             # Legacy single-shot Gemini wrapper + heuristic fallback
+│   ├── fraud_detector.py            # Original fixed pipeline (reference)
+│   └── actions.py                   # Block / flag / allow action executor
 │
 ├── api/
 │   └── server.py                    # FastAPI backend (REST + WebSocket)
@@ -515,7 +518,9 @@ All 5 tests must pass before moving to Day 3.
 
 ## 7. Day 3 — Gemini Agent Core
 
-**Goal:** The agent follows the full 7-step workflow and returns a valid risk decision for any transaction.
+> **What we built:** The original plan called for a fixed 7-step pipeline. During implementation, this evolved into a **multi-turn agent with Gemini function calling** — the agent dynamically chooses which tools to call based on what it finds. See `agent/agent_core.py` for the implementation.
+
+**Goal:** The agent follows a dynamic investigation workflow, calling tools via Gemini function calling until confident enough to submit a risk decision (max 6 turns).
 
 ### Step 3.1 — agent/gemini_client.py
 
@@ -527,7 +532,7 @@ This module wraps Google Gemini 3 and exposes a single method: `reason_about_tra
 
 - Reads `GEMINI_API_KEY` from environment
 - Calls `genai.configure(api_key=...)`
-- Instantiates `genai.GenerativeModel('gemini-2.0-flash')` — use flash for speed and cost
+- Instantiates `genai.GenerativeModel('gemini-2.5-flash')` — use flash for speed and cost
 
 **Method: `reason_about_transaction`**
 
@@ -801,7 +806,7 @@ If this was you, contact support immediately. Ref: {alert_id}
 ```
 
 The `send_sms()` function in `agent/actions.py` logs to console by default.
-Replace the body with any provider — Africa's Talking, Twilio, Vonage, etc.
+Replace the body with any SMS provider — Twilio, Vonage, Africa's Talking, etc.
 No env vars required.
 
 ### Step 4.2 — Transaction Replay Engine
@@ -1014,7 +1019,7 @@ config/mcp_config.json
 
 **1:15 – 2:00 | Live agent evaluation**
 
-> Switch to the Streamlit dashboard. Open the manual transaction input panel.
+> Switch to the React dashboard. Open the manual transaction analysis panel ("Analyze Transaction" button).
 > "Now watch the agent reason about a live transaction. I'll submit a suspicious CASH_OUT of $5,000 — this account normally makes one transaction a week under $500."
 > Fill in the form. Hit submit. Show the result appearing.
 > "The agent fetched 24 hours of history via MongoDB MCP, calculated a velocity score of 8.7 out of 10, checked the recipient against our flagged accounts list, and sent everything to Gemini for reasoning."
@@ -1024,7 +1029,7 @@ config/mcp_config.json
 **2:00 – 2:30 | Show the full loop**
 
 > Switch to the alert feed section of the dashboard.
-> "The blocked transaction is immediately logged to MongoDB, and an SMS alert is sent to the account holder via Africa's Talking."
+> "The blocked transaction is immediately logged to MongoDB, and an SMS alert is sent to the account holder."
 > Show the alert card appearing in the feed. Show a sample SMS.
 > "Every decision the agent makes — the reasoning, the signals, the score — is stored in MongoDB for audit and review."
 
@@ -1297,7 +1302,7 @@ GEMINI_API_KEY=AIza...
 
 # ── SMS Alerts ────────────────────────────────────────
 # Generic SMS function in agent/actions.py — logs to console by default.
-# Plug in your own provider (Africa's Talking, Twilio, Vonage, etc.)
+# Plug in your own SMS provider (Twilio, Vonage, Africa's Talking, etc.)
 # No env vars required — edit the send_sms() function directly.
 
 # ── PaySim Data ────────────────────────────────────────
@@ -1347,7 +1352,7 @@ db.transactions.updateMany({ expectedNewBalanceOrg: { $exists: false } }, [
 ### Gemini Issues
 
 **Problem:** Gemini returns plain text instead of JSON
-**Solution:** The retry wrapper in `gemini_client.py` handles this. If it persists after 3 retries, check if the prompt ends with the JSON format instruction. Also verify you're using `gemini-2.0-flash` not an older model.
+**Solution:** The retry wrapper in `gemini_client.py` handles this. If it persists after 3 retries, check if the prompt ends with the JSON format instruction. Also verify you're using `gemini-2.5-flash` not an older model.
 
 **Problem:** Gemini API quota exceeded
 **Solution:** Apply for increased quota at: GCP Console → Vertex AI → Generative AI → Quotas. Free tier allows ~60 requests/minute. Add `time.sleep(1)` between evaluations in the replay engine if hitting limits.
@@ -1405,7 +1410,7 @@ Complete every item before June 11 @ 11:00 PM EAT.
 - [ ] Risk score returned for every transaction
 - [ ] Block action logs alert to MongoDB
 - [ ] SMS alert fires on block (even if using sandbox number)
-- [ ] Streamlit dashboard shows live metrics and alert feed
+- [ ] React dashboard shows live metrics, replay, and agent trace
 - [ ] Manual transaction input on dashboard works
 
 ### Deployment
@@ -1415,7 +1420,7 @@ Complete every item before June 11 @ 11:00 PM EAT.
 - [ ] Deployed to Google Cloud Run with public HTTPS URL
 - [ ] Cloud Run has min-instances=1 (no cold starts)
 - [ ] All environment variables set as Cloud Run secrets/env vars
-- [ ] Public URL loads the Streamlit dashboard without errors
+- [ ] Public URL loads the React dashboard without errors
 
 ### Demo Video
 

@@ -1,5 +1,7 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createReplaySocket } from "../api";
+
+const BATCH_INTERVAL_MS = 80; // flush queued rows every 80ms for smooth rendering
 
 interface ReplayRow {
 	index: number;
@@ -45,13 +47,39 @@ export default function ReplayPanel() {
 	const [limit, setLimit] = useState(100);
 	const [speed, setSpeed] = useState(5);
 	const wsRef = useRef<WebSocket | null>(null);
+	const rowBuffer = useRef<ReplayRow[]>([]);
+	const logBuffer = useRef<string[]>([]);
+	const flushTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-	const addLog = (msg: string) => setLogs((prev) => [...prev.slice(-500), msg]);
+	// Flush batched rows and logs on a timer for smooth rendering
+	const flushBuffers = useCallback(() => {
+		if (rowBuffer.current.length > 0) {
+			setRows((prev) => [...rowBuffer.current, ...prev]);
+			rowBuffer.current = [];
+		}
+		if (logBuffer.current.length > 0) {
+			setLogs((prev) => [
+				...prev.slice(-(500 - logBuffer.current.length)),
+				...logBuffer.current,
+			]);
+			logBuffer.current = [];
+		}
+	}, []);
+
+	const addLog = (msg: string) => {
+		logBuffer.current.push(msg);
+	};
 
 	const start = useCallback(() => {
 		setRows([]);
 		setLogs([]);
+		rowBuffer.current = [];
+		logBuffer.current = [];
 		setRunning(true);
+
+		// Start periodic flush for smooth rendering
+		flushTimer.current = setInterval(flushBuffers, BATCH_INTERVAL_MS);
+
 		const ws = createReplaySocket();
 		wsRef.current = ws;
 		ws.onopen = () => {
@@ -68,7 +96,7 @@ export default function ReplayPanel() {
 				);
 				setProgress(`0 / ${msg.total}`);
 			} else if (msg.type === "transaction_result") {
-				setRows((prev) => [msg as ReplayRow, ...prev]);
+				rowBuffer.current.push(msg as ReplayRow);
 				const t = msg.transaction;
 				addLog(
 					`[${String(msg.index).padStart(3, "0")}/${msg.total}] ${t.type.padEnd(9)} $${t.amount.toLocaleString().padStart(12)} | ${t.nameOrig} → ${t.nameDest} | score=${msg.risk_score} ${msg.action.toUpperCase()} | ${msg.elapsed_ms}ms`,
@@ -76,10 +104,13 @@ export default function ReplayPanel() {
 				setProgress(`${msg.index} / ${msg.total}`);
 			} else if (msg.type === "replay_complete") {
 				addLog(`[DONE]  ✅ All ${msg.total} transactions processed`);
+				// Flush remaining before stopping
+				flushBuffers();
 				setRunning(false);
 				setProgress(`Complete — ${msg.total} txns`);
 			} else if (msg.type === "replay_stopped") {
 				addLog("[STOP]  ⏹ Replay stopped by user");
+				flushBuffers();
 				setRunning(false);
 			} else if (msg.type === "error") {
 				addLog(`[ERROR] ${msg.error}`);
@@ -88,18 +119,25 @@ export default function ReplayPanel() {
 		ws.onclose = () => {
 			if (ws === wsRef.current) {
 				addLog("[WS]    Disconnected");
+				flushBuffers();
 				setRunning(false);
 			}
 		};
 		ws.onerror = () => {
 			if (ws === wsRef.current) {
 				addLog("[WS]    Connection error");
+				flushBuffers();
 				setRunning(false);
 			}
 		};
-	}, [limit, speed]);
+	}, [limit, speed, flushBuffers]);
 
 	const stop = useCallback(() => {
+		// Clear flush timer
+		if (flushTimer.current) {
+			clearInterval(flushTimer.current);
+			flushTimer.current = null;
+		}
 		const ws = wsRef.current;
 		if (!ws || ws.readyState !== WebSocket.OPEN) {
 			setRunning(false);
@@ -107,11 +145,20 @@ export default function ReplayPanel() {
 			return;
 		}
 		ws.send(JSON.stringify({ action: "stop" }));
-		// Give server a moment to process the stop before we close
 		setTimeout(() => {
 			if (ws.readyState === WebSocket.OPEN) ws.close();
+			flushBuffers();
 			setRunning(false);
 		}, 500);
+	}, [flushBuffers]);
+
+	// Cleanup flush timer on unmount
+	useEffect(() => {
+		return () => {
+			if (flushTimer.current) {
+				clearInterval(flushTimer.current);
+			}
+		};
 	}, []);
 
 	return (
@@ -129,10 +176,12 @@ export default function ReplayPanel() {
 						value={limit}
 						onChange={(e) => setLimit(Number(e.target.value))}
 					>
+						<option value={5}>5</option>
+						<option value={10}>10</option>
+						<option value={25}>25</option>
 						<option value={50}>50</option>
+						<option value={75}>75</option>
 						<option value={100}>100</option>
-						<option value={200}>200</option>
-						<option value={500}>500</option>
 					</select>
 				</span>
 				<span className='control-group'>
@@ -186,8 +235,22 @@ export default function ReplayPanel() {
 							{r.trace && r.trace.length > 0 && (
 								<div className='agent-trace'>
 									<div className='trace-header'>Agent Investigation</div>
+									{/* Heuristic baseline */}
 									{r.trace
-										.filter((t: any) => t.turn > 0)
+										.filter((t: any) => t.tool === "_heuristic")
+										.map((t: any, j: number) => (
+											<div key={`h${j}`} className='trace-heuristic'>
+												{t.result_summary}
+											</div>
+										))}
+									{/* Tool calls */}
+									{r.trace
+										.filter(
+											(t: any) =>
+												t.turn > 0 &&
+												t.tool !== "analysis" &&
+												t.tool !== "_tool_analysis",
+										)
 										.map((t: any, j: number) => (
 											<div key={j}>
 												<div className='trace-step'>
@@ -196,16 +259,35 @@ export default function ReplayPanel() {
 													<span className='trace-result'>
 														{t.result_summary}
 													</span>
-													<span className='trace-ms'>{t.elapsed_ms}ms</span>
+													<span className='trace-ms'>
+														{t.elapsed_ms > 0 ? `${t.elapsed_ms}ms` : ""}
+													</span>
 												</div>
 												{t.reasoning && (
 													<div className='trace-reasoning'>{t.reasoning}</div>
 												)}
 											</div>
 										))}
-									{r.trace.find((t: any) => t.turn === 0)?.result_summary && (
+									{/* Per-tool analyses */}
+									{r.trace
+										.filter((t: any) => t.tool === "_tool_analysis")
+										.map((t: any, j: number) => (
+											<div key={`ta${j}`} className='trace-tool-analysis'>
+												{t.result_summary}
+											</div>
+										))}
+									{/* Final analysis */}
+									{r.trace
+										.filter((t: any) => t.tool === "analysis")
+										.map((t: any, j: number) => (
+											<div key={`a${j}`} className='trace-analysis'>
+												{t.result_summary}
+											</div>
+										))}
+									{/* Summary */}
+									{r.trace.find((t: any) => t.turn === -1)?.result_summary && (
 										<div className='trace-summary'>
-											{r.trace.find((t: any) => t.turn === 0)!.result_summary}
+											{r.trace.find((t: any) => t.turn === -1)!.result_summary}
 										</div>
 									)}
 								</div>

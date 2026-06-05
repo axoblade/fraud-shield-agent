@@ -395,6 +395,12 @@ h3 {
 	letter-spacing: 0.04em;
 	margin-bottom: 8px;
 }
+.trace-heuristic {
+	font-size: 0.72rem;
+	color: var(--text-tertiary);
+	padding: 4px 0 6px 0;
+	font-style: italic;
+}
 .trace-step {
 	display: flex;
 	align-items: center;
@@ -433,6 +439,21 @@ h3 {
 	padding: 2px 0 4px 38px;
 	font-style: italic;
 	line-height: 1.4;
+}
+.trace-analysis {
+	font-size: 0.78rem;
+	color: var(--text-primary);
+	padding: 6px 0 6px 14px;
+	line-height: 1.5;
+	border-left: 3px solid var(--accent);
+	margin: 4px 0 4px 12px;
+}
+.trace-tool-analysis {
+	font-size: 0.76rem;
+	color: var(--text-secondary);
+	padding: 3px 0 5px 26px;
+	line-height: 1.45;
+	margin: 2px 0;
 }
 .trace-summary {
 	margin-top: 8px;
@@ -634,4 +655,63 @@ h3 {
 .modal-panel::-webkit-scrollbar-thumb {
 	background: var(--border);
 	border-radius: 3px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+	.replay-split {
+		grid-template-columns: 1fr;
+		min-height: auto;
+	}
+	.replay-results,
+	.replay-log {
+		max-height: 50vh;
+	}
+	.metrics-bar {
+		grid-template-columns: 1fr;
+	}
+	.form-row {
+		grid-template-columns: 1fr;
+	}
+	.dashboard {
+		padding: 16px 12px;
+	}
+	.modal-panel {
+		width: 100vw;
+	}
+	.navbar {
+		padding: 0 12px;
+	}
+	.nav-subtitle {
+		display: none;
+	}
+	.replay-controls {
+		gap: 6px;
+		padding: 10px 12px;
+	}
+}
+
+@media (max-width: 480px) {
+	.login-card {
+		width: 100%;
+		margin: 0 12px;
+		padding: 28px 20px;
+	}
+	.nav-brand {
+		gap: 4px;
+	}
+	.nav-title {
+		font-size: 0.9rem;
+	}
+	.nav-btn {
+		padding: 6px 10px;
+		font-size: 0.75rem;
+	}
+	.replay-controls {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+	.replay-progress-inline {
+		margin-left: 0;
+	}
 }
