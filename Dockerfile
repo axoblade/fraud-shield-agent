@@ -6,7 +6,7 @@ RUN npm install -g pnpm && pnpm install --frozen-lockfile
 COPY frontend/ ./
 RUN pnpm build
 
-# Stage 2: Runtime — Python + Node.js (Node.js needed for MCP server via npx)
+# Stage 2: Runtime, Python + Node.js (Node.js needed for MCP server via npx)
 FROM python:3.12-slim
 RUN apt-get update \
     && apt-get install -y nodejs npm curl --no-install-recommends \

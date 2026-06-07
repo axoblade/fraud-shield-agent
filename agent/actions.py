@@ -1,5 +1,5 @@
 """
-actions.py — Day 4 Actions & Alerts
+actions.py - Actions & Alerts
 Executes allow / flag / block decisions and sends SMS alerts.
 
 Usage:
@@ -25,7 +25,7 @@ load_dotenv()
 RISK_BLOCK_THRESHOLD = int(os.getenv("RISK_BLOCK_THRESHOLD", "61"))
 RISK_FLAG_THRESHOLD = int(os.getenv("RISK_FLAG_THRESHOLD", "31"))
 
-# ── SMS helper (generic — plug in your own provider) ──────────────
+# ── SMS helper (generic, plug in your own provider) ──────────────
 
 def send_sms(message: str, recipients: Optional[list] = None) -> bool:
     """Send an SMS alert.  Logs to console by default.

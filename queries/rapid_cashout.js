@@ -1,5 +1,5 @@
 // queries/rapid_cashout.js
-// Rapid Cash-Out Detection — finds accounts that drained large sums via many CASH_OUT txns
+// Rapid Cash-Out Detection - finds accounts that drained large sums via many CASH_OUT txns
 // Expected: ~847 results, <150ms with compound index on { type: 1, isFraud: 1 }
 
 db.transactions.aggregate([

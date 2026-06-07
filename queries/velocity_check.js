@@ -1,5 +1,5 @@
 // queries/velocity_check.js
-// High-Velocity Transfer Detection — finds accounts with >5 txns in a single hour
+// High-Velocity Transfer Detection - finds accounts with >5 txns in a single hour
 // Expected: ~2,341 results, <200ms with compound index on { nameOrig: 1, step: -1 }
 
 db.transactions.aggregate([

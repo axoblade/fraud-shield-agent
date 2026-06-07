@@ -64,9 +64,7 @@ export default function ReplayPanel() {
 		ws.onmessage = (e) => {
 			const msg = JSON.parse(e.data);
 			if (msg.type === "replay_start") {
-				addLog(
-					`[INIT]  Fetched ${msg.total} transactions (${msg.fraud} fraud + ${msg.normal} normal)`,
-				);
+				addLog(`[INIT]  Fetched ${msg.total} transactions`);
 				setProgress(`0 / ${msg.total}`);
 			} else if (msg.type === "transaction_result") {
 				setRows((prev) => [msg as ReplayRow, ...prev]);
@@ -78,7 +76,7 @@ export default function ReplayPanel() {
 			} else if (msg.type === "replay_complete") {
 				addLog(`[DONE]  ✅ All ${msg.total} transactions processed`);
 				setRunning(false);
-				setProgress(`Complete — ${msg.total} txns`);
+				setProgress(`Complete - ${msg.total} txns`);
 			} else if (msg.type === "replay_stopped") {
 				addLog("[STOP]  ⏹ Replay stopped by user");
 				setRunning(false);

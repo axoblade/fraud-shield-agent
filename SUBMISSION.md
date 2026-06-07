@@ -23,11 +23,10 @@
 
 ### Google Cloud Products Used
 
-| Product                   | How We Use It                                                                                                                                                                                                                                                             |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Gemini 2.5 Flash**      | Multi-turn reasoning engine; the agent's brain. Gemini receives 7 registered tools, decides which to call based on transaction context, analyses results, and submits a final risk decision. All via function calling through the **Google Agent Development Kit (ADK)**. |
-| **Cloud Run**             | Serverless hosting for the FastAPI backend + React frontend. Single Docker container, auto-scaling, HTTPS by default. Deployed at [fraud-shield-agent-612621242021.europe-west1.run.app](https://fraud-shield-agent-612621242021.europe-west1.run.app).                   |
-| **Agent Development Kit** | Code-first agent framework. We use ADK's `Agent`, `Runner`, and `FunctionTool` to orchestrate the multi-turn investigation compliant with the hackathon's required code-first path within the Google Cloud Agent Builder ecosystem.                                       |
+| Product              | How We Use It                                                                                                                                                                                                                                                             |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Gemini 2.5 Flash** | Multi-turn reasoning engine; the agent's brain. Gemini receives 7 registered tools, decides which to call based on transaction context, analyses results, and submits a final risk decision. All via function calling through the **Google Agent Development Kit (ADK)**. |
+| **Cloud Run**        | Serverless hosting for the FastAPI backend + React frontend. Single Docker container, auto-scaling, HTTPS by default. Deployed at [fraud-shield-agent-612621242021.europe-west1.run.app](https://fraud-shield-agent-612621242021.europe-west1.run.app).                   |
 
 ---
 
@@ -229,17 +228,17 @@ Our initial design used a deterministic 7-step pipeline: always check history, a
 
 Naively inserting 6.36 million PaySim rows one document at a time would take hours. We solved this with MongoDB's `insertMany()` in batches of 10,000 documents, using a Python loader with chunked CSV reading. Total load time: approximately 4 minutes.
 
-### Challenge 2; Preventing Gemini Hallucination in Function Calls
+### Challenge 2; ADK Integration and Function Calling
 
-Early in development, Gemini occasionally returned malformed function calls or narrative text instead of calling a tool. We solved this by enforcing strict function-calling schemas with typed parameters, adding retry logic with gentle nudging ("You MUST call submit_risk_decision NOW"), and implementing a heuristic fallback that computes a risk score from available trace data when Gemini fails to decide within 6 turns.
+Converting our hand-rolled Gemini function-calling loop to the **Google Agent Development Kit (ADK)** required understanding ADK's event-driven architecture, session management, `FunctionTool` registration, and `Runner` orchestration. We also had to handle ADK-specific quirks like `InMemorySessionService`, `auto_create_session`, and proper `Content`/`Part` message formatting.
 
 ### Challenge 3; Handling the Imbalanced Dataset in Validation
 
-With only 0.13% fraud, random sampling for evaluation would almost never include a fraudulent transaction. We built a replay engine that interleaves fraudulent and legitimate transactions chronologically, giving the agent a realistic but evaluable test stream where fraud appears at its natural frequency.
+With only 0.13% fraud, random sampling for evaluation would almost never include a fraudulent transaction. We built a streaming replay engine that samples transactions one at a time via MongoDB `$sample`, giving the agent a realistic evaluable test stream where fraud appears at its natural ~0.13% frequency.
 
 ### Challenge 4; Simulating Real-Time Without a Live Stream
 
-The PaySim dataset is historical, not streaming. To simulate real-time detection for the demo, we built a **WebSocket replay engine** that feeds transactions to the agent in chronological order at configurable speed; fast enough to demonstrate the agent blocking fraud, slow enough to show the reasoning steps on screen.
+The PaySim dataset is historical, not streaming. To simulate real-time detection for the demo, we built a **WebSocket replay engine** that streams transactions one at a time via MongoDB `$sample` at configurable speed — true random sampling with no pre-fetch bias.
 
 ### Challenge 5; Protobuf Serialization in the API Layer
 
@@ -299,7 +298,7 @@ uvicorn api.server:app --reload --port 8000   # Terminal 1
 cd frontend && pnpm dev                        # Terminal 2
 ```
 
-Open **http://localhost:5173** — no login required.
+Open **http://localhost:5173**; login with `admin` / `admin`.
 
 ### Docker
 

@@ -1,12 +1,10 @@
 """
-verify_day1.py — Day 1 Verification (Optimized)
-Tests targeted agent-style queries against indexed data.
-Mimics the exact query patterns fraud_detector.py will use at runtime.
+verify_indexes.py - MongoDB Index Verification
+Runs targeted agent-style queries to verify compound indexes are working.
+All queries should return in under 500ms.
 
 Usage:
-    python data/verify_day1.py
-
-All queries must return in <500ms for Day 1 to be considered complete.
+    python data/verify_indexes.py
 """
 
 import os
@@ -89,7 +87,7 @@ for idx_name, idx_fields in expected_indexes.items():
     if idx_name in existing_indexes:
         logger.info(f"   ✅ Index [{idx_name}] exists")
     else:
-        logger.warning(f"   ⚠️  Index [{idx_name}] MISSING — run load_paysim.py to recreate")
+        logger.warning(f"   ⚠️  Index [{idx_name}] MISSING - run load_paysim.py to recreate")
 
 logger.info("")
 

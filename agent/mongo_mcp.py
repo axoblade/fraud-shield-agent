@@ -1,5 +1,5 @@
 """
-mongo_mcp.py — Day 2 MongoDB MCP Client
+mongo_mcp.py - Day 2 MongoDB MCP Client
 Python wrapper around mongodb-mcp-server via the MCP Python SDK.
 
 Exposes 5 async methods the agent uses at runtime:
@@ -46,7 +46,7 @@ class MCPConnectionError(Exception):
 class MongoDBMCPClient:
     """Async wrapper around the MongoDB MCP server (stdio transport).
 
-    Maintains a persistent session — one subprocess, reused across calls.
+    Maintains a persistent session - one subprocess, reused across calls.
     The subprocess is lazily started on first use and kept alive.
     """
 
@@ -67,7 +67,7 @@ class MongoDBMCPClient:
         return self
 
     async def __aexit__(self, *args: Any) -> None:
-        # Silent cleanup — process exit handles EPIPE
+        # Silent cleanup - process exit handles EPIPE
         self._session = None
         self._session_ctx = None
         self._read = None
@@ -78,8 +78,8 @@ class MongoDBMCPClient:
         if self._session is not None:
             return self._session
         params = StdioServerParameters(
-            command="mongodb-mcp-server",
-            args=[],
+            command="npx",
+            args=["-y", "mongodb-mcp-server"],
             env={
                 "MDB_MCP_CONNECTION_STRING": self._uri,
                 "NODE_NO_WARNINGS": "1",
@@ -161,7 +161,7 @@ class MongoDBMCPClient:
         for item in content_items:
             if not hasattr(item, "text") or not item.text:
                 continue
-            # Find all untrusted-user-data blocks — the last one has the data
+            # Find all untrusted-user-data blocks - the last one has the data
             matches = list(
                 re.finditer(
                     r"<untrusted-user-data-[^>]+>\s*(.*?)\s*</untrusted-user-data-[^>]+>",

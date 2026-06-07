@@ -17,7 +17,7 @@ export default function Landing({ onEnter }: Props) {
 				</h1>
 				<p className='hero-tagline'>
 					An autonomous AI agent that investigates and blocks mobile money fraud
-					in real time — before the money leaves the account.
+					in real time - before the money leaves the account.
 				</p>
 				<div className='hero-actions'>
 					<button className='hero-cta' onClick={onEnter}>
@@ -70,7 +70,7 @@ export default function Landing({ onEnter }: Props) {
 					<div className='stat-card'>
 						<span className='stat-value'>0.13%</span>
 						<span className='stat-label'>
-							of transactions are fraudulent — finding them is the challenge
+							of transactions are fraudulent - finding them is the challenge
 						</span>
 					</div>
 				</div>
@@ -78,13 +78,13 @@ export default function Landing({ onEnter }: Props) {
 					<p>
 						Fraudsters exploit the speed of mobile money. They drain accounts
 						through rapid cash-outs, route funds through mule networks, and
-						manipulate account balances — often before the victim sees a
+						manipulate account balances - often before the victim sees a
 						notification. Traditional rule-based systems flag transactions hours
 						or days later. By then, the money is gone.
 					</p>
 					<p>
 						<strong>FraudShield Agent</strong> investigates every transaction in
-						real time. It doesn't just apply rules — it <em>reasons</em> about
+						real time. It doesn't just apply rules - it <em>reasons</em> about
 						what it finds, decides how deep to dig, and acts before the fraud
 						completes.
 					</p>
@@ -95,7 +95,7 @@ export default function Landing({ onEnter }: Props) {
 			<section className='landing-section dark'>
 				<h2>How It Works</h2>
 				<p className='section-lead'>
-					A transaction arrives. The agent investigates. A decision is made —
+					A transaction arrives. The agent investigates. A decision is made -
 					all in real time.
 				</p>
 				<div className='how-it-works'>
@@ -143,7 +143,7 @@ export default function Landing({ onEnter }: Props) {
 						<div className='hw-connector' />
 						<h3>Agent Investigates</h3>
 						<p>
-							Gemini 2.5 Flash chooses which of 7 tools to call — history,
+							Gemini 2.5 Flash chooses which of 7 tools to call - history,
 							velocity, mule, baseline, balance, risk. Up to 6 adaptive turns.
 						</p>
 					</div>
@@ -212,7 +212,7 @@ export default function Landing({ onEnter }: Props) {
 								5 transaction types: CASH_OUT, TRANSFER, PAYMENT, DEBIT, CASH_IN
 							</li>
 							<li>
-								8,213 fraudulent transactions (0.13% — realistic class
+								8,213 fraudulent transactions (0.13% - realistic class
 								imbalance)
 							</li>
 							<li>Includes agent-to-client and client-to-agent flows</li>
@@ -231,7 +231,7 @@ export default function Landing({ onEnter }: Props) {
 							</li>
 							<li>
 								<strong>Balance mismatch:</strong> Transactions where oldBalance
-								− amount ≠ newBalance — sign of account manipulation
+								− amount ≠ newBalance - sign of account manipulation
 							</li>
 							<li>
 								<strong>Velocity spikes:</strong> Sudden bursts of activity from
@@ -264,7 +264,7 @@ export default function Landing({ onEnter }: Props) {
 						<blockquote>
 							"Of 6.36M transactions, only 0.13% are fraudulent. A fixed
 							pipeline wastes compute on every harmless payment. FraudShield
-							Agent adapts — a $50 PAYMENT gets a single history check; a $500K
+							Agent adapts - a $50 PAYMENT gets a single history check; a $500K
 							CASH_OUT triggers full velocity, mule, baseline, and balance
 							investigation. The agent
 							<em>chooses</em> how deep to go."
@@ -280,7 +280,7 @@ export default function Landing({ onEnter }: Props) {
 					<figure className='screenshot'>
 						<img
 							src='/images/dashboard.png'
-							alt='FraudShield Agent Dashboard — live replay, metrics, and verbose log'
+							alt='FraudShield Agent Dashboard - live replay, metrics, and verbose log'
 						/>
 						<figcaption>
 							Live replay dashboard with WebSocket metrics, batched transaction
@@ -290,7 +290,7 @@ export default function Landing({ onEnter }: Props) {
 					<figure className='screenshot'>
 						<img
 							src='/images/single_analysis_evaluation_blocked.png'
-							alt='Single transaction analysis — BLOCKED decision with full agent trace'
+							alt='Single transaction analysis - BLOCKED decision with full agent trace'
 						/>
 						<figcaption>
 							Manual transaction evaluation showing a BLOCKED decision with
@@ -307,7 +307,7 @@ export default function Landing({ onEnter }: Props) {
 					<div className='use-case'>
 						<h3>Mobile Network Operators</h3>
 						<p>
-							M-Pesa, MTN Mobile Money, Airtel Money — any operator running a
+							M-Pesa, MTN Mobile Money, Airtel Money - any operator running a
 							mobile money platform can deploy FraudShield Agent as a real-time
 							transaction screening layer. Integrate via REST API. Block fraud
 							before the SMS confirmation is sent.
@@ -372,7 +372,7 @@ export default function Landing({ onEnter }: Props) {
 						<h3>Production-ready data layer</h3>
 						<p>
 							6.36M indexed transactions. Compound indexes verified. 5 MCP
-							tools. Everything runs on MongoDB Atlas — scales from free tier to
+							tools. Everything runs on MongoDB Atlas - scales from free tier to
 							enterprise.
 						</p>
 					</div>
@@ -380,7 +380,7 @@ export default function Landing({ onEnter }: Props) {
 						<h3>Real-time dashboard</h3>
 						<p>
 							Live WebSocket metrics. Transaction replay with speed controls.
-							Full agent trace visibility — every tool call, every reasoning
+							Full agent trace visibility - every tool call, every reasoning
 							step, every decision.
 						</p>
 					</div>
@@ -436,7 +436,8 @@ export default function Landing({ onEnter }: Props) {
 				<h2>See it in action</h2>
 				<p>
 					Log in with <code>admin</code> / <code>admin</code>. Run a replay.
-					Submit a transaction. Watch the agent reason.
+					Submit a transaction. Watch the agent reason. Submit a transaction.
+					Watch the agent reason.
 				</p>
 				<button className='hero-cta' onClick={onEnter}>
 					Open Dashboard →

@@ -1,5 +1,5 @@
 // queries/mule_network.js
-// Money Mule Network Detection — finds accounts receiving many TRANSFERs and forwarding them
+// Money Mule Network Detection - finds accounts receiving many TRANSFERs and forwarding them
 // Expected: <500ms with compound index on { nameDest: 1, type: 1 }
 
 db.transactions.aggregate([

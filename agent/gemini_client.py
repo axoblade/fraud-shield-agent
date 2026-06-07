@@ -1,5 +1,5 @@
 """
-gemini_client.py — Day 3 Gemini Agent Core
+gemini_client.py - Day 3 Gemini Agent Core
 Wraps Google Gemini 3 (gemini-2.0-flash) for fraud risk reasoning.
 
 Usage:

@@ -2,6 +2,7 @@ pymongo[srv]==4.7.2
 python-dotenv==1.0.1
 pandas==2.2.2
 google-generativeai==0.7.2
+google-adk>=2.0.0
 tqdm==4.66.4
 tenacity==8.3.0
 loguru==0.7.2

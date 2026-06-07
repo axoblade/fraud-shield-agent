@@ -1,5 +1,5 @@
 // queries/balance_mismatch.js
-// Balance Mismatch Fraud Detection — finds txns where newbalanceOrig != oldbalanceOrg - amount
+// Balance Mismatch Fraud Detection - finds txns where newbalanceOrig != oldbalanceOrg - amount
 // Uses precomputed expectedNewBalanceOrg field added during load
 // Expected: ~8,213 results, <100ms with compound index on { amount: -1 }
 

@@ -1,18 +1,22 @@
+# ── Suppress OpenTelemetry noise from ADK (must be before all imports) ──
+import os as _os
+_os.environ.setdefault("OTEL_PYTHON_DISABLED", "1")
+_os.environ.setdefault("GRPC_VERBOSITY", "ERROR")
+_os.environ.setdefault("GRPC_TRACE", "none")
+
 """
-api/server.py — FraudShield FastAPI Backend
+api/server.py - FraudShield FastAPI Backend
 REST + WebSocket API for the React dashboard.
 
 Endpoints:
-  POST /api/login          — dummy auth (admin/admin)
-  POST /api/evaluate       — run the 7-step fraud detection pipeline
-  GET  /api/metrics        — live MongoDB counts
-  WS   /ws/replay          — stream transactions from DB in real time
+  POST /api/login          - dummy auth (admin/admin)
+  POST /api/evaluate       - run the fraud detection agent
+  GET  /api/metrics        - live MongoDB counts
+  WS   /ws/replay          - stream transactions from DB in real time
 
 Usage:
     uvicorn api.server:app --reload --port 8000
 """
-
-from __future__ import annotations
 
 import asyncio
 import json
@@ -34,12 +38,8 @@ if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
 from agent.actions import ActionExecutor
-from agent.agent_core import FraudShieldAgent
+from agent.adk_agent import FraudShieldADKAgent
 from agent.mongo_mcp import MongoDBMCPClient
-
-# Suppress gRPC fork noise from npx MCP subprocess
-os.environ.setdefault("GRPC_VERBOSITY", "ERROR")
-os.environ.setdefault("GRPC_TRACE", "none")
 
 
 def _to_plain(obj: Any) -> Any:
@@ -111,7 +111,7 @@ class MetricsResponse(BaseModel):
 # ── Clients (lazy init) ───────────────────────────────────────────
 
 _mcp: MongoDBMCPClient | None = None
-_agent: FraudShieldAgent | None = None
+_agent: FraudShieldADKAgent | None = None
 _executor: ActionExecutor | None = None
 
 
@@ -119,7 +119,7 @@ def _get_clients():
     global _mcp, _agent, _executor
     if _mcp is None:
         _mcp = MongoDBMCPClient()
-        _agent = FraudShieldAgent(mcp=_mcp)
+        _agent = FraudShieldADKAgent(mcp=_mcp)
         _executor = ActionExecutor(_mcp)
     return _mcp, _agent, _executor
 
@@ -190,7 +190,7 @@ async def metrics():
 async def ws_metrics(ws: WebSocket):
     """Push live MongoDB counts every 5 seconds."""
     await ws.accept()
-    # Fresh MCP client per connection — avoids anyio task conflicts
+    # Fresh MCP client per connection - avoids anyio task conflicts
     mcp = MongoDBMCPClient()
 
     try:
@@ -231,36 +231,30 @@ async def ws_replay(ws: WebSocket):
                 limit = min(msg.get("limit", 200), 1000)
                 speed = max(msg.get("speed", 1.0), 0.1)
 
-                # Fetch mixed transactions
-                half = limit // 2
-                fraud_txns = await mcp.find("transactions", {"isFraud": 1}, limit=half)
-                normal_txns = await mcp.find(
-                    "transactions",
-                    {"isFraud": 0, "type": "CASH_OUT"},
-                    limit=half,
-                )
-                all_txns = sorted(
-                    fraud_txns + normal_txns, key=lambda x: x.get("step", 0)
-                )
-
                 await ws.send_json({
                     "type": "replay_start",
-                    "total": len(all_txns),
-                    "fraud": len(fraud_txns),
-                    "normal": len(normal_txns),
+                    "total": limit,
                 })
 
-                for i, txn in enumerate(all_txns):
+                for i in range(limit):
+                    # Fetch one random transaction at a time — true streaming
+                    batch = await mcp.aggregate("transactions", [
+                        {"$sample": {"size": 1}},
+                    ])
+                    if not batch:
+                        break
+                    txn = batch[0]
+
                     try:
                         decision, trace = await agent.evaluate(txn)
-                        decision = _to_plain(decision)  # strip protobuf types
-                        trace = _to_plain(trace)        # strip protobuf types from trace
+                        decision = _to_plain(decision)
+                        trace = _to_plain(trace)
                         action_result = await executor.execute(txn, decision)
 
                         await ws.send_json({
                             "type": "transaction_result",
                             "index": i + 1,
-                            "total": len(all_txns),
+                            "total": limit,
                             "transaction": {
                                 "step": txn.get("step"),
                                 "type": txn.get("type"),
@@ -286,7 +280,7 @@ async def ws_replay(ws: WebSocket):
 
                     await asyncio.sleep(0.5 / speed)
 
-                await ws.send_json({"type": "replay_complete", "total": len(all_txns)})
+                await ws.send_json({"type": "replay_complete", "total": limit})
 
             elif action == "stop":
                 await ws.send_json({"type": "replay_stopped"})

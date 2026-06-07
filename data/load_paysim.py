@@ -1,11 +1,9 @@
 """
-load_paysim.py — Day 1 Data Foundation
+load_paysim.py - PaySim Data Loader
 Loads the PaySim CSV into MongoDB Atlas in chunks with derived fields and indexes.
 
 Usage:
     python data/load_paysim.py
-
-Expected completion: ~4 minutes for 6.3M documents (~300K docs/sec on Atlas M0).
 """
 
 import os
@@ -29,7 +27,7 @@ PAYSIM_CSV_PATH = os.getenv("PAYSIM_CSV_PATH", "./raw_materials/PS_20174392719_1
 BATCH_SIZE = int(os.getenv("BATCH_SIZE", "10000"))
 
 if not MONGODB_URI:
-    logger.error("MONGODB_URI not set in .env — cannot connect to MongoDB Atlas.")
+    logger.error("MONGODB_URI not set in .env - cannot connect to MongoDB Atlas.")
     sys.exit(1)
 
 # ── Connect to MongoDB ────────────────────────────────────────────
@@ -110,11 +108,11 @@ rate = total_rows / elapsed if elapsed > 0 else 0
 logger.info(f"✅ Loaded {total_rows:,} documents in {elapsed:.1f}s ({rate:,.0f} docs/sec)")
 logger.info(f"   Batches: {total_batches} | Collection: {MONGODB_DATABASE}.transactions")
 
-# ── Create indexes (AFTER bulk insert — faster on existing data) ──
+# ── Create indexes (AFTER bulk insert - faster on existing data) ──
 logger.info("Creating compound indexes...")
 
 indexes = [
-    # 1. Agent 24h history lookup — most critical
+    # 1. Agent 24h history lookup - most critical
     ([("nameOrig", ASCENDING), ("step", DESCENDING)], "nameOrig_step"),
     # 2. Fraud type filtering
     ([("type", ASCENDING), ("isFraud", ASCENDING)], "type_isFraud"),
@@ -134,18 +132,18 @@ for fields, name in indexes:
 # ── Create supporting collections ─────────────────────────────────
 logger.info("Creating supporting collections...")
 
-# fraudshield.alerts — agent decisions
+# fraudshield.alerts - agent decisions
 alerts_collection = db["alerts"]
 alerts_collection.create_index([("timestamp", DESCENDING)], name="timestamp_desc")
 alerts_collection.create_index([("risk_score", DESCENDING)], name="risk_score_desc")
 logger.info("   ✅ fraudshield.alerts (indexed)")
 
-# fraudshield.risk_scores — per-account risk profiles
+# fraudshield.risk_scores - per-account risk profiles
 risk_scores = db["risk_scores"]
 risk_scores.create_index([("nameOrig", ASCENDING)], unique=True, name="nameOrig_unique")
 logger.info("   ✅ fraudshield.risk_scores (unique index)")
 
-# fraudshield.flagged_accounts — known mule accounts
+# fraudshield.flagged_accounts - known mule accounts
 flagged = db["flagged_accounts"]
 flagged.create_index([("accountId", ASCENDING)], unique=True, name="accountId_unique")
 logger.info("   ✅ fraudshield.flagged_accounts (unique index)")
