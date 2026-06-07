@@ -303,6 +303,15 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/api/version")
+def version():
+    try:
+        v = open(os.path.join(_project_root, "VERSION")).read().strip()
+    except FileNotFoundError:
+        v = "dev"
+    return {"version": v}
+
+
 # ── Serve React SPA in production ─────────────────────────────────
 # In local dev Vite handles the frontend; in Docker / Cloud Run the
 # built assets live at frontend/dist/ and FastAPI serves them directly.

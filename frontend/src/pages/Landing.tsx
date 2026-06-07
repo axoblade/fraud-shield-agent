@@ -435,9 +435,8 @@ export default function Landing({ onEnter }: Props) {
 			<section className='landing-cta'>
 				<h2>See it in action</h2>
 				<p>
-					Log in with <code>admin</code> / <code>admin</code>. Run a replay.
-					Submit a transaction. Watch the agent reason. Submit a transaction.
-					Watch the agent reason.
+					Run a replay, submit a transaction, and watch the agent investigate in
+					real time..
 				</p>
 				<button className='hero-cta' onClick={onEnter}>
 					Open Dashboard →
@@ -449,7 +448,8 @@ export default function Landing({ onEnter }: Props) {
 					Built by Axoblade · Google Cloud Rapid Agent Hackathon · June 2026
 				</p>
 				<p className='footer-meta'>
-					MongoDB Track · PaySim Dataset · Gemini 2.5 Flash
+					MongoDB Track · PaySim Dataset · Gemini 2.5 Flash · v
+					{typeof APP_VERSION !== "undefined" ? APP_VERSION : "1.0.0"}
 				</p>
 			</footer>
 		</div>

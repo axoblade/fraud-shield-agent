@@ -94,6 +94,15 @@ h3 {
 	color: var(--text-tertiary);
 	font-size: 0.85rem;
 }
+.nav-version {
+	font-size: 0.65rem;
+	color: var(--text-tertiary);
+	background: var(--bg);
+	padding: 1px 6px;
+	border-radius: 3px;
+	margin-left: 6px;
+	font-weight: 500;
+}
 .nav-actions {
 	display: flex;
 	align-items: center;

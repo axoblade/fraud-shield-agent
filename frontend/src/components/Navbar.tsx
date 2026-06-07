@@ -22,6 +22,7 @@ export default function Navbar({ onLogout, onAnalyze }: Props) {
 				</svg>
 				<span className='nav-title'>FraudShield</span>
 				<span className='nav-subtitle'>Agent</span>
+				<span className='nav-version'>v{APP_VERSION}</span>
 			</div>
 			<div className='nav-actions'>
 				<button className='nav-btn nav-analyze' onClick={onAnalyze}>

@@ -299,7 +299,7 @@ uvicorn api.server:app --reload --port 8000   # Terminal 1
 cd frontend && pnpm dev                        # Terminal 2
 ```
 
-Open **http://localhost:5173** — no login required.
+Open **http://localhost:5173**.
 
 ### Docker
 
