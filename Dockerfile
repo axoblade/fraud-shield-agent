@@ -3,6 +3,7 @@ FROM node:22-slim AS frontend-builder
 WORKDIR /frontend
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
 RUN npm install -g pnpm && pnpm install --frozen-lockfile
+COPY VERSION ../
 COPY frontend/ ./
 RUN pnpm build
 
