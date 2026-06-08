@@ -5,450 +5,412 @@ interface Props {
 }
 
 export default function Landing({ onEnter }: Props) {
+	const proofMetrics = [
+		{ value: "6.36M", label: "Transactions Indexed" },
+		{ value: "8,213", label: "Fraud Labels" },
+		{ value: "0.13%", label: "Fraud Rate" },
+		{ value: "<200ms", label: "Query Latency" },
+	];
+
+	const pipeline = [
+		{
+			step: "01",
+			title: "Transaction Intake",
+			description:
+				"FastAPI receives PAYMENT, TRANSFER, CASH_OUT, DEBIT, and CASH_IN events in real time and normalizes payloads for the agent.",
+		},
+		{
+			step: "02",
+			title: "Adaptive Reasoning",
+			description:
+				"Gemini 2.5 Flash with Google ADK function tools starts with history, then expands into deeper checks only when risk evidence emerges.",
+		},
+		{
+			step: "03",
+			title: "MongoDB MCP Evidence",
+			description:
+				"MongoDB Atlas and MCP tools run indexed find and aggregate pipelines for velocity, mule activity, and balance integrity.",
+		},
+		{
+			step: "04",
+			title: "Decision and Action",
+			description:
+				"Agent returns a 0-100 risk score with explicit ALLOW, FLAG, or BLOCK action, then logs auditable traces for operations teams.",
+		},
+	];
+
 	return (
 		<div className='landing'>
-			{/* ── Hero ── */}
 			<header className='landing-hero'>
-				<div className='hero-badge'>
-					Google Cloud Rapid Agent Hackathon · MongoDB Track
+				<nav className='hero-nav'>
+					<div className='hero-badge'>
+						Google Cloud Rapid Agent Hackathon 2026
+					</div>
+					<div className='hero-links'>
+						<a href='#problem'>Problem</a>
+						<a href='#approach'>Approach</a>
+						<a href='#how'>How It Works</a>
+						<a href='#proof'>Proof</a>
+						<a href='#product'>Product</a>
+						<a
+							href='https://github.com/axoblade/fraud-shield-agent'
+							target='_blank'
+							rel='noreferrer'
+						>
+							GitHub
+						</a>
+					</div>
+				</nav>
+
+				<div className='hero-body'>
+					<p className='eyebrow'>AI-Powered Financial Defense</p>
+					<h1>
+						FraudShield <span>Agent</span>
+					</h1>
+					<p className='hero-tagline'>
+						A real-time fraud investigator for mobile money that reasons,
+						chooses tools dynamically, and blocks suspicious transfers before
+						value leaves the account.
+					</p>
+					<div className='hero-actions'>
+						<button className='hero-cta' onClick={onEnter}>
+							Launch Live Dashboard
+						</button>
+						<a href='#problem' className='hero-secondary'>
+							See how it works
+						</a>
+					</div>
 				</div>
-				<h1>
-					FraudShield <span className='hero-accent'>Agent</span>
-				</h1>
-				<p className='hero-tagline'>
-					An autonomous AI agent that investigates and blocks mobile money fraud
-					in real time - before the money leaves the account.
-				</p>
-				<div className='hero-actions'>
-					<button className='hero-cta' onClick={onEnter}>
-						Open Dashboard →
-					</button>
-					<a href='#case-study' className='hero-secondary'>
-						View Case Study ↓
-					</a>
-				</div>
-				<div className='hero-stats'>
-					<div className='hero-stat'>
-						<span className='hero-stat-value'>6.36M</span>
-						<span className='hero-stat-label'>Transactions analysed</span>
-					</div>
-					<div className='hero-stat'>
-						<span className='hero-stat-value'>8,213</span>
-						<span className='hero-stat-label'>Fraud detected</span>
-					</div>
-					<div className='hero-stat'>
-						<span className='hero-stat-value'>&lt;500ms</span>
-						<span className='hero-stat-label'>Query time</span>
-					</div>
-					<div className='hero-stat'>
-						<span className='hero-stat-value'>7</span>
-						<span className='hero-stat-label'>Investigation tools</span>
-					</div>
+
+				<div className='hero-metrics'>
+					{proofMetrics.map((metric) => (
+						<article className='metric-card' key={metric.label}>
+							<p className='metric-value'>{metric.value}</p>
+							<p className='metric-label'>{metric.label}</p>
+						</article>
+					))}
 				</div>
 			</header>
 
-			{/* ── Problem ── */}
-			<section className='landing-section'>
-				<h2>The Problem</h2>
-				<p className='section-lead'>
-					Mobile money is the financial backbone of Sub-Saharan Africa. It's
-					also the fastest-growing target for financial crime.
-				</p>
-				<div className='section-grid three-col'>
-					<div className='stat-card'>
-						<span className='stat-value'>800M+</span>
-						<span className='stat-label'>
-							registered mobile money accounts across Africa
-						</span>
-					</div>
-					<div className='stat-card'>
-						<span className='stat-value'>$1B+</span>
-						<span className='stat-label'>
-							lost annually to mobile money fraud
-						</span>
-					</div>
-					<div className='stat-card'>
-						<span className='stat-value'>0.13%</span>
-						<span className='stat-label'>
-							of transactions are fraudulent - finding them is the challenge
-						</span>
-					</div>
+			{/* ── 1. THE PROBLEM ── */}
+			<section className='landing-section' id='problem'>
+				<div className='section-heading'>
+					<p className='section-tag'>The Stakes</p>
+					<h2>$1 billion lost annually. Static rules can't keep up.</h2>
 				</div>
-				<div className='problem-narrative'>
-					<p>
-						Fraudsters exploit the speed of mobile money. They drain accounts
-						through rapid cash-outs, route funds through mule networks, and
-						manipulate account balances - often before the victim sees a
-						notification. Traditional rule-based systems flag transactions hours
-						or days later. By then, the money is gone.
-					</p>
-					<p>
-						<strong>FraudShield Agent</strong> investigates every transaction in
-						real time. It doesn't just apply rules - it <em>reasons</em> about
-						what it finds, decides how deep to dig, and acts before the fraud
-						completes.
-					</p>
+				<div className='mission-grid'>
+					<article className='mission-card'>
+						<h3>800M+ mobile money accounts across Africa</h3>
+						<p>
+							For most users, mobile money isn't a convenience. It's their only
+							financial infrastructure. Account drains don't just mean a bad
+							week; they mean families can't pay school fees or buy food.
+						</p>
+					</article>
+					<article className='mission-card'>
+						<h3>Rules-based systems fail at scale</h3>
+						<p>
+							Static thresholds generate floods of false positives and still
+							miss coordinated attacks. Fraud is almost always detected after
+							funds have already moved, sometimes days later.
+						</p>
+					</article>
+					<article className='mission-card'>
+						<h3>0.13% fraud rate breaks naive models</h3>
+						<p>
+							In a dataset of 6.36M transactions, only 8,213 are fraudulent. A
+							model that predicts "not fraud" for everything achieves 99.87%
+							accuracy and catches zero criminals. This is the accuracy paradox.
+						</p>
+					</article>
 				</div>
 			</section>
 
-			{/* ── How It Works ── */}
-			<section className='landing-section dark'>
-				<h2>How It Works</h2>
-				<p className='section-lead'>
-					A transaction arrives. The agent investigates. A decision is made -
-					all in real time.
-				</p>
-				<div className='how-it-works'>
-					<div className='hw-step'>
-						<div className='hw-icon'>
-							<svg
-								width='24'
-								height='24'
-								viewBox='0 0 24 24'
-								fill='none'
-								stroke='currentColor'
-								strokeWidth='2'
-								strokeLinecap='round'
-								strokeLinejoin='round'
-							>
-								<path d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' />
-								<polyline points='17 8 12 3 7 8' />
-								<line x1='12' y1='3' x2='12' y2='15' />
-							</svg>
-						</div>
-						<div className='hw-connector' />
-						<h3>Transaction Arrives</h3>
+			{/* ── 2. THE APPROACH ── */}
+			<section className='landing-section flow-section' id='approach'>
+				<div className='section-heading'>
+					<p className='section-tag'>Our Approach</p>
+					<h2>An agent that investigates like a human, acts like a machine.</h2>
+				</div>
+				<div className='mission-grid'>
+					<article className='mission-card'>
+						<h3>Not a rules engine. Not a classifier.</h3>
 						<p>
-							CASH_OUT, TRANSFER, PAYMENT, or DEBIT hits the platform.
-							FraudShield Agent intercepts it instantly via REST API.
+							FraudShield is an autonomous agent. It chooses which of 7
+							investigation tools to call, interprets results, and decides when
+							evidence is sufficient to act, up to 6 adaptive turns per
+							transaction.
 						</p>
-					</div>
-					<div className='hw-step'>
-						<div className='hw-icon'>
-							<svg
-								width='24'
-								height='24'
-								viewBox='0 0 24 24'
-								fill='none'
-								stroke='currentColor'
-								strokeWidth='2'
-								strokeLinecap='round'
-								strokeLinejoin='round'
-							>
-								<circle cx='12' cy='12' r='10' />
-								<path d='M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3' />
-								<line x1='12' y1='17' x2='12.01' y2='17' />
-							</svg>
-						</div>
-						<div className='hw-connector' />
-						<h3>Agent Investigates</h3>
+					</article>
+					<article className='mission-card'>
+						<h3>Dynamic investigation depth</h3>
 						<p>
-							Gemini 2.5 Flash chooses which of 7 tools to call - history,
-							velocity, mule, baseline, balance, risk. Up to 6 adaptive turns.
+							A $50 payment to a known account gets a single history check. A
+							$500K cash-out to a new recipient triggers full velocity, mule
+							network, baseline, and balance investigation. The agent chooses
+							how deep to go.
 						</p>
-					</div>
-					<div className='hw-step'>
-						<div className='hw-icon'>
-							<svg
-								width='24'
-								height='24'
-								viewBox='0 0 24 24'
-								fill='none'
-								stroke='currentColor'
-								strokeWidth='2'
-								strokeLinecap='round'
-								strokeLinejoin='round'
-							>
-								<ellipse cx='12' cy='5' rx='9' ry='3' />
-								<path d='M21 12c0 1.66-4 3-9 3s-9-1.34-9-3' />
-								<path d='M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5' />
-							</svg>
-						</div>
-						<div className='hw-connector' />
-						<h3>MongoDB Responds</h3>
+					</article>
+					<article className='mission-card'>
+						<h3>Transparent by design</h3>
 						<p>
-							6.36M indexed transactions queried via 5 MCP tools. Every query
-							returns in under 500ms with compound indexes.
+							Every tool call is logged with Gemini's reasoning. A heuristic
+							baseline runs alongside every decision. Signal tags are
+							auto-generated. Nothing is a black box. Reviewers see exactly why
+							each decision was made.
 						</p>
-					</div>
-					<div className='hw-step'>
-						<div className='hw-icon'>
-							<svg
-								width='24'
-								height='24'
-								viewBox='0 0 24 24'
-								fill='none'
-								stroke='currentColor'
-								strokeWidth='2'
-								strokeLinecap='round'
-								strokeLinejoin='round'
-							>
-								<polyline points='20 6 9 17 4 12' />
-							</svg>
-						</div>
-						<h3>Decision &amp; Action</h3>
-						<p>
-							Risk score 0–100. Block, flag, or allow. Alert logged. SMS
-							notification sent. Full investigation trace recorded.
-						</p>
-					</div>
+					</article>
 				</div>
 			</section>
 
-			{/* ── Case Study ── */}
-			<section className='landing-section' id='case-study'>
-				<h2>Case Study: PaySim Fraud Detection</h2>
-				<p className='section-lead'>
-					We tested FraudShield Agent against the PaySim mobile money simulator
-					— the gold standard dataset for mobile financial fraud research.
-				</p>
+			{/* ── 3. HOW IT WORKS ── */}
+			<section className='landing-section flow-section' id='how'>
+				<div className='section-heading'>
+					<p className='section-tag'>Architecture</p>
+					<h2>Gemini reasons. MongoDB proves. FraudShield acts.</h2>
+				</div>
 
-				<div className='case-study-grid'>
-					<div className='case-card'>
+				<div className='flow-grid'>
+					{pipeline.map((item) => (
+						<article className='flow-card' key={item.step}>
+							<span>{item.step}</span>
+							<h3>{item.title}</h3>
+							<p>{item.description}</p>
+						</article>
+					))}
+				</div>
+
+				<div className='arch-deep'>
+					<article className='arch-pillar'>
+						<h3 className='arch-pillar-title'>Google Cloud Integration</h3>
+						<div className='arch-stack'>
+							<div className='arch-layer'>
+								<h4>Gemini 2.5 Flash via Google ADK</h4>
+								<p>
+									The agent's brain. Gemini receives 7 registered investigation tools
+									through ADK's FunctionTool API and decides which to call based on
+									transaction context. ADK orchestrates the multi-turn loop with
+									Agent, Runner, InMemorySessionService, and structured Content/Part
+									message formatting built into the framework.
+								</p>
+							</div>
+							<div className='arch-layer'>
+								<h4>Function-calling with structured schemas</h4>
+								<p>
+									Each tool is registered with typed Pydantic parameters. Gemini
+									returns protobuf function-call responses that the ADK runtime
+									dispatches to Python handlers. A recursive sanitizer strips
+									protobuf types before results reach the frontend.
+								</p>
+							</div>
+							<div className='arch-layer'>
+								<h4>Cloud Run deployment</h4>
+								<p>
+									FastAPI backend and React frontend served from a single multi-stage
+									Docker container on Cloud Run. Auto-scaling, HTTPS by default, zero
+									infrastructure management. Deployed at europe-west1.
+								</p>
+							</div>
+						</div>
+					</article>
+
+					<article className='arch-pillar'>
+						<h3 className='arch-pillar-title'>MongoDB Integration</h3>
+						<div className='arch-stack'>
+							<div className='arch-layer'>
+								<h4>Atlas M20 with 6.36M indexed documents</h4>
+								<p>
+									Five compound indexes on nameOrig, type, amount, nameDest, and step
+									keep every aggregation pipeline under 200ms even across the full
+									dataset. Without indexes the same queries took 8 to 12 seconds.
+								</p>
+							</div>
+							<div className='arch-layer'>
+								<h4>MCP Server with 5 database tools</h4>
+								<p>
+									find, aggregate, count, insert_one, and update_one are exposed
+									through the MongoDB MCP server running via npx. The agent calls
+									these directly — it does not retrieve raw rows and analyze in
+									Python. It delegates analysis to MongoDB's aggregation engine.
+								</p>
+							</div>
+							<div className='arch-layer'>
+								<h4>Aggregation pipeline as analytical engine</h4>
+								<p>
+									Mule network detection uses $lookup to join collections and compare
+									inbound vs outbound flows in a single pipeline. Velocity checks use
+									$group with time-bucketed $match. The agent chooses which pipeline
+									to run based on what the evidence demands.
+								</p>
+							</div>
+						</div>
+					</article>
+				</div>
+
+				<div className='formula-card'>
+					<h3>Risk Decision Policy</h3>
+					<p>0-30: Allow | 31-60: Flag for review | 61-100: Block + alert</p>
+				</div>
+			</section>
+
+			{/* ── 4. PROOF ── */}
+			<section className='landing-section' id='proof'>
+				<div className='section-heading'>
+					<p className='section-tag'>Validation</p>
+					<h2>6.36M transactions. Four fraud patterns. One agent.</h2>
+				</div>
+				<div className='data-grid'>
+					<article className='data-card'>
 						<h3>Dataset</h3>
 						<ul>
-							<li>6,362,620 transactions from a simulated 30-day period</li>
+							<li>
+								6,362,620 PaySim transactions across a 30-day simulation window
+							</li>
+							<li>8,213 fraud labels at realistic 0.13% prevalence</li>
 							<li>
 								5 transaction types: CASH_OUT, TRANSFER, PAYMENT, DEBIT, CASH_IN
 							</li>
 							<li>
-								8,213 fraudulent transactions (0.13% - realistic class
-								imbalance)
-							</li>
-							<li>Includes agent-to-client and client-to-agent flows</li>
-						</ul>
-					</div>
-					<div className='case-card'>
-						<h3>Fraud Patterns Detected</h3>
-						<ul>
-							<li>
-								<strong>Rapid cash-out:</strong> Accounts draining &gt;$500K
-								across multiple transactions in a single day
-							</li>
-							<li>
-								<strong>Money mule networks:</strong> TRANSFER chains routing
-								funds through intermediary accounts
-							</li>
-							<li>
-								<strong>Balance mismatch:</strong> Transactions where oldBalance
-								− amount ≠ newBalance - sign of account manipulation
-							</li>
-							<li>
-								<strong>Velocity spikes:</strong> Sudden bursts of activity from
-								previously dormant accounts
+								Compound indexes verified on nameOrig, type, amount, nameDest,
+								step
 							</li>
 						</ul>
-					</div>
-					<div className='case-card'>
-						<h3>Agent Performance</h3>
+					</article>
+					<article className='data-card'>
+						<h3>Fraud patterns caught</h3>
+						<ul>
+							<li>Rapid cash-out via velocity aggregation over 24h windows</li>
+							<li>
+								Money mule networks via inbound/outbound flow correlation with
+								$lookup
+							</li>
+							<li>
+								Balance mismatch via oldBalance − amount ≠ newBalance integrity
+								check
+							</li>
+							<li>
+								Velocity spikes via per-hour anomaly detection from dormant
+								accounts
+							</li>
+						</ul>
+					</article>
+					<article className='data-card'>
+						<h3>Performance</h3>
 						<ul>
 							<li>
-								All 4 detection queries return in <strong>under 200ms</strong>{" "}
-								on 6.36M documents
+								All 4 detection pipelines run under 200ms on 6.36M documents
 							</li>
 							<li>
-								Compound indexes on nameOrig, type, amount, step, and nameDest
+								5 MCP tools: find, aggregate, insert_one, update_one, count
 							</li>
 							<li>
-								Multi-turn reasoning adapts depth: quick check for small
-								payments, deep investigation for large cash-outs
-							</li>
-							<li>
-								Heuristic baseline runs alongside every Gemini decision for
+								Heuristic fallback validates every Gemini decision for
 								consistency
 							</li>
+							<li>
+								WebSocket replay engine for realistic evaluation at 1× to 20×
+								speed
+							</li>
 						</ul>
-					</div>
-					<div className='case-card'>
-						<h3>Key Insight</h3>
-						<blockquote>
-							"Of 6.36M transactions, only 0.13% are fraudulent. A fixed
-							pipeline wastes compute on every harmless payment. FraudShield
-							Agent adapts - a $50 PAYMENT gets a single history check; a $500K
-							CASH_OUT triggers full velocity, mule, baseline, and balance
-							investigation. The agent
-							<em>chooses</em> how deep to go."
-						</blockquote>
-					</div>
+					</article>
 				</div>
 			</section>
 
-			{/* ── Screenshots ── */}
-			<section className='landing-section dark'>
-				<h2>Screenshots</h2>
+			{/* ── 5. PRODUCT ── */}
+			<section className='landing-section screens' id='product'>
+				<div className='section-heading'>
+					<p className='section-tag'>Live Product</p>
+					<h2>See the dashboard. Watch the agent. Trust the decision.</h2>
+				</div>
 				<div className='screenshot-grid'>
 					<figure className='screenshot'>
 						<img
 							src='/images/dashboard.png'
-							alt='FraudShield Agent Dashboard - live replay, metrics, and verbose log'
+							alt='FraudShield dashboard with live metrics, transaction replay, and verbose event log'
 						/>
 						<figcaption>
-							Live replay dashboard with WebSocket metrics, batched transaction
-							results, and verbose terminal log
+							Replay cockpit with live KPI counters, batched analysis feed, and
+							terminal-style event stream updated over WebSocket.
 						</figcaption>
 					</figure>
 					<figure className='screenshot'>
 						<img
 							src='/images/single_analysis_evaluation_blocked.png'
-							alt='Single transaction analysis - BLOCKED decision with full agent trace'
+							alt='Single transaction analysis with blocked decision and full agent reasoning trace'
 						/>
 						<figcaption>
-							Manual transaction evaluation showing a BLOCKED decision with
-							complete agent investigation trace
+							Case review with tool-by-tool reasoning trace, risk signals,
+							heuristic baseline, and final action with complete audit trail.
 						</figcaption>
 					</figure>
 				</div>
-			</section>
 
-			{/* ── Use Cases ── */}
-			<section className='landing-section dark'>
-				<h2>Use Cases</h2>
-				<div className='use-case-grid'>
-					<div className='use-case'>
+				<div className='business-grid' style={{ marginTop: 20 }}>
+					<article>
 						<h3>Mobile Network Operators</h3>
 						<p>
-							M-Pesa, MTN Mobile Money, Airtel Money - any operator running a
-							mobile money platform can deploy FraudShield Agent as a real-time
-							transaction screening layer. Integrate via REST API. Block fraud
-							before the SMS confirmation is sent.
+							Screen transactions before confirmation SMS. Reduce account-drain
+							fraud in real time.
 						</p>
-					</div>
-					<div className='use-case'>
+					</article>
+					<article>
 						<h3>Commercial Banks</h3>
 						<p>
-							Banks offering mobile banking in emerging markets face the same
-							fraud patterns. FraudShield plugs into existing transaction
-							pipelines and adds an AI reasoning layer on top of conventional
-							fraud rules.
+							Layer intelligent investigation on top of existing anti-fraud
+							controls for digital channels.
 						</p>
-					</div>
-					<div className='use-case'>
+					</article>
+					<article>
 						<h3>Fintech &amp; Payment Gateways</h3>
 						<p>
-							Payment processors handling cross-border remittances or merchant
-							payments can use FraudShield to screen for mule accounts and rapid
-							cash-out patterns before settlement completes.
+							Detect mule routing and abnormal transfer bursts before settlement
+							finality.
 						</p>
-					</div>
-					<div className='use-case'>
-						<h3>Regulatory &amp; Compliance</h3>
+					</article>
+					<article>
+						<h3>Regulatory Analytics</h3>
 						<p>
-							Central banks and financial intelligence units can run FraudShield
-							in batch mode across historical transaction data to identify
-							systemic fraud networks and inform policy.
+							Replay historical streams and expose coordinated fraud network
+							behavior for enforcement.
 						</p>
-					</div>
+					</article>
 				</div>
 			</section>
 
-			{/* ── Why Different ── */}
-			<section className='landing-section'>
-				<h2>What Sets It Apart</h2>
-				<div className='diff-grid'>
-					<div className='diff-card'>
-						<h3>Autonomous, not scripted</h3>
-						<p>
-							Not a rules engine. Not a classification API. An agent that
-							chooses tools, interprets results, and decides when it has enough
-							evidence to act.
-						</p>
-					</div>
-					<div className='diff-card'>
-						<h3>Transparent reasoning</h3>
-						<p>
-							Every tool call is logged with Gemini's justification. A heuristic
-							baseline runs alongside every decision. Nothing is a black box.
-						</p>
-					</div>
-					<div className='diff-card'>
-						<h3>Adaptive depth</h3>
-						<p>
-							Small payments to known accounts get a quick check. Large
-							cash-outs to new recipients get full multi-tool investigation. No
-							wasted compute.
-						</p>
-					</div>
-					<div className='diff-card'>
-						<h3>Production-ready data layer</h3>
-						<p>
-							6.36M indexed transactions. Compound indexes verified. 5 MCP
-							tools. Everything runs on MongoDB Atlas - scales from free tier to
-							enterprise.
-						</p>
-					</div>
-					<div className='diff-card'>
-						<h3>Real-time dashboard</h3>
-						<p>
-							Live WebSocket metrics. Transaction replay with speed controls.
-							Full agent trace visibility - every tool call, every reasoning
-							step, every decision.
-						</p>
-					</div>
-					<div className='diff-card'>
-						<h3>Built for hackathon, ready for production</h3>
-						<p>
-							Docker container. FastAPI + WebSocket backend. React + TypeScript
-							frontend. Deploy to Cloud Run in one command. Extend with your own
-							SMS provider.
-						</p>
-					</div>
-				</div>
-			</section>
-
-			{/* ── Tech ── */}
-			<section className='landing-section dark'>
-				<h2>Technology Stack</h2>
-				<div className='tech-grid'>
-					<div className='tech-item'>
-						<h4>AI &amp; Reasoning</h4>
-						<p>
-							Gemini 2.5 Flash · Function Calling · Multi-turn Agent · Heuristic
-							Fallback
-						</p>
-					</div>
-					<div className='tech-item'>
-						<h4>Database</h4>
-						<p>MongoDB Atlas · MCP Protocol · 5 Tools · Compound Indexes</p>
-					</div>
-					<div className='tech-item'>
-						<h4>Backend</h4>
-						<p>Python 3.12 · FastAPI · Uvicorn · WebSocket · Loguru</p>
-					</div>
-					<div className='tech-item'>
-						<h4>Frontend</h4>
-						<p>
-							React 19 · TypeScript · Vite · CSS Custom Properties · Responsive
-						</p>
-					</div>
-					<div className='tech-item'>
-						<h4>Deployment</h4>
-						<p>Docker · Google Cloud Run · Multi-stage Build</p>
-					</div>
-					<div className='tech-item'>
-						<h4>Data</h4>
-						<p>PaySim Dataset · 6.36M Transactions · Chunked Loading</p>
-					</div>
-				</div>
-			</section>
-
-			{/* ── CTA ── */}
+			{/* ── 6. CTA ── */}
 			<section className='landing-cta'>
-				<h2>See it in action</h2>
-				<p>
-					Run a replay, submit a transaction, and watch the agent investigate in
-					real time..
-				</p>
-				<button className='hero-cta' onClick={onEnter}>
-					Open Dashboard →
-				</button>
+				<div className='cta-body'>
+					<p className='section-tag'>One Click Away</p>
+					<h2>
+						The agent is running. The data is live. The dashboard is ready.
+					</h2>
+					<p>
+						Submit a transaction, watch the investigation unfold tool by tool,
+						and see exactly how FraudShield makes every decision in real time.
+					</p>
+					<div className='cta-actions'>
+						<button className='hero-cta' onClick={onEnter}>
+							Launch Live Dashboard
+						</button>
+						<a
+							href='https://github.com/axoblade/fraud-shield-agent'
+							target='_blank'
+							rel='noreferrer'
+							className='cta-secondary'
+						>
+							View on GitHub
+						</a>
+					</div>
+				</div>
 			</section>
 
 			<footer className='landing-footer'>
 				<p>
-					Built by Axoblade · Google Cloud Rapid Agent Hackathon · June 2026
+					Built by Axoblade for the Google Cloud Rapid Agent Hackathon - June
+					2026
 				</p>
 				<p className='footer-meta'>
-					MongoDB Track · PaySim Dataset · Gemini 2.5 Flash · v
+					MongoDB Track | Gemini 2.5 Flash | ADK | PaySim | v
 					{typeof APP_VERSION !== "undefined" ? APP_VERSION : "1.0.0"}
 				</p>
 			</footer>
