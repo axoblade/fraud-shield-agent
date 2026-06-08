@@ -187,11 +187,12 @@ export default function Landing({ onEnter }: Props) {
 							<div className='arch-layer'>
 								<h4>Gemini 2.5 Flash via Google ADK</h4>
 								<p>
-									The agent's brain. Gemini receives 7 registered investigation tools
-									through ADK's FunctionTool API and decides which to call based on
-									transaction context. ADK orchestrates the multi-turn loop with
-									Agent, Runner, InMemorySessionService, and structured Content/Part
-									message formatting built into the framework.
+									The agent's brain. Gemini receives 7 registered investigation
+									tools through ADK's FunctionTool API and decides which to call
+									based on transaction context. ADK orchestrates the multi-turn
+									loop with Agent, Runner, InMemorySessionService, and
+									structured Content/Part message formatting built into the
+									framework.
 								</p>
 							</div>
 							<div className='arch-layer'>
@@ -206,9 +207,10 @@ export default function Landing({ onEnter }: Props) {
 							<div className='arch-layer'>
 								<h4>Cloud Run deployment</h4>
 								<p>
-									FastAPI backend and React frontend served from a single multi-stage
-									Docker container on Cloud Run. Auto-scaling, HTTPS by default, zero
-									infrastructure management. Deployed at europe-west1.
+									FastAPI backend and React frontend served from a single
+									multi-stage Docker container on Cloud Run. Auto-scaling, HTTPS
+									by default, zero infrastructure management. Deployed at
+									europe-west1.
 								</p>
 							</div>
 						</div>
@@ -220,27 +222,30 @@ export default function Landing({ onEnter }: Props) {
 							<div className='arch-layer'>
 								<h4>Atlas M20 with 6.36M indexed documents</h4>
 								<p>
-									Five compound indexes on nameOrig, type, amount, nameDest, and step
-									keep every aggregation pipeline under 200ms even across the full
-									dataset. Without indexes the same queries took 8 to 12 seconds.
+									Five compound indexes on nameOrig, type, amount, nameDest, and
+									step keep every aggregation pipeline under 200ms even across
+									the full dataset. Without indexes the same queries took 8 to
+									12 seconds.
 								</p>
 							</div>
 							<div className='arch-layer'>
 								<h4>MCP Server with 5 database tools</h4>
 								<p>
 									find, aggregate, count, insert_one, and update_one are exposed
-									through the MongoDB MCP server running via npx. The agent calls
-									these directly — it does not retrieve raw rows and analyze in
-									Python. It delegates analysis to MongoDB's aggregation engine.
+									through the MongoDB MCP server running via npx. The agent
+									calls these directly — it does not retrieve raw rows and
+									analyze in Python. It delegates analysis to MongoDB's
+									aggregation engine.
 								</p>
 							</div>
 							<div className='arch-layer'>
 								<h4>Aggregation pipeline as analytical engine</h4>
 								<p>
-									Mule network detection uses $lookup to join collections and compare
-									inbound vs outbound flows in a single pipeline. Velocity checks use
-									$group with time-bucketed $match. The agent chooses which pipeline
-									to run based on what the evidence demands.
+									Mule network detection uses $lookup to join collections and
+									compare inbound vs outbound flows in a single pipeline.
+									Velocity checks use $group with time-bucketed $match. The
+									agent chooses which pipeline to run based on what the evidence
+									demands.
 								</p>
 							</div>
 						</div>
